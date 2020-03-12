@@ -1,17 +1,24 @@
 package open.edx.qticonverter.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import open.edx.qticonverter.models.interfaces.BlockTypeable;
+import open.edx.qticonverter.mongomodel.Structure;
+import org.springframework.data.annotation.Id;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class Course implements BlockTypeable {
+    @Id
     private String id;
     private String name;
     private List<Chapter> chapters;
 
+    @JsonIgnore
+    private Structure structure;
+
     public Course() {
-        chapters = new ArrayList<>();
+        this.chapters = new ArrayList<>();
     }
 
     public String getId() {
@@ -36,6 +43,15 @@ public class Course implements BlockTypeable {
 
     public void setChapters(List<Chapter> chapters) {
         this.chapters = chapters;
+    }
+
+
+    public Structure getStructure() {
+        return structure;
+    }
+
+    public void setStructure(Structure structure) {
+        this.structure = structure;
     }
 
     @Override
