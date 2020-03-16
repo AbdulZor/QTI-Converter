@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import open.edx.qticonverter.models.*;
+import open.edx.qticonverter.models.Questions.CheckboxGroup;
+import open.edx.qticonverter.models.Questions.Choice;
 import open.edx.qticonverter.models.Questions.SingleChoice;
 import open.edx.qticonverter.models.interfaces.XmlAttributes;
 import open.edx.qticonverter.mongomodel.Definition;
@@ -20,13 +22,12 @@ import org.springframework.stereotype.Component;
 import org.w3c.dom.*;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+import org.zeroturnaround.zip.ZipUtil;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.*;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
@@ -230,42 +231,170 @@ public class CourseService {
         int PRETTY_PRINT_INDENT_FACTOR = 5;
         String TEST_XML_STRING = definitionOptional.get().getData();
 
-        try {
-            if (TEST_XML_STRING.contains("checkboxgroup")) {
-                XmlMapper xmlMapper = new XmlMapper();
-                xmlMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-                xmlMapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
-
-                // read file and put contents into the string
-//            String readContent = new String(Files.readAllBytes(Paths.get("../olx-files/to_deserialize.xml")));
-
-                // deserialize from the XML into a Phone object
-                open.edx.qticonverter.models.Questions.Problem deserializedData = xmlMapper.readValue(TEST_XML_STRING, open.edx.qticonverter.models.Questions.Problem.class);
-
-                // Print object details
-                System.out.println("Deserialized data: ");
-                System.out.println("XML String: " + TEST_XML_STRING);
-                System.out.println("\tP: " + deserializedData.getP());
-                System.out.println("\tSolution: " + deserializedData.getSolution());
-            }
-        } catch (IOException e) {
-            throw new IOException();
-            // handle the exception
-        }
-
 //        try {
+//            if (TEST_XML_STRING.contains("checkboxgroup")) {
+//                XmlMapper xmlMapper = new XmlMapper();
+//                xmlMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+//                xmlMapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+//
+//                // read file and put contents into the string
+////            String readContent = new String(Files.readAllBytes(Paths.get("../olx-files/to_deserialize.xml")));
+//
+//                // deserialize from the XML into a Phone object
+//                open.edx.qticonverter.models.Questions.Problem deserializedData = xmlMapper.readValue(TEST_XML_STRING, open.edx.qticonverter.models.Questions.Problem.class);
+//
+//                // Print object details
+//                System.out.println("Deserialized data: ");
+//                System.out.println("XML String: " + TEST_XML_STRING);
+//                System.out.println("\tP: " + deserializedData.getP());
+//                System.out.println("\tSolution: " + deserializedData.getSolution());
+//            }
+//        } catch (IOException e) {
+//            throw new IOException();
+//            // handle the exception
+//        }
+
+        try {
 //            System.out.println("Sample.xml contents = " + TEST_XML_STRING);
-//
-//            Document doc = toXmlDocument(TEST_XML_STRING);
-//
-////            System.out.println("XML document formed");
-////
+
+            Document doc = toXmlDocument(TEST_XML_STRING);
+            System.out.println("XML STRING: " + TEST_XML_STRING);
+
+
+            // DOM PARSER -> DOM TRANSFORM -> XML FILE CREATED
+            Element problemNode = doc.getDocumentElement();
+
+            // create responseDeclaration element with its child correctResponse
+            Element responseDeclaration = doc.createElement("responseDeclaration");
+            String responseIdentifier = "RESPONSE";
+            responseDeclaration.setAttribute("identifier", responseIdentifier);
+            responseDeclaration.setAttribute("baseType", "identifier");
+
+            Element itemBody = doc.createElement("itemBody");
+//            Node node = problemNode.getChildNodes().item(0).getChildNodes().
+//            itemBody.appendChild()
+
+            NodeList problemChildren = problemNode.getChildNodes();
+
+            for (int i = 0; i < problemChildren.getLength(); i++) {
+                Node problemChild = problemChildren.item(i);
+
+                // if there is a choice box question in the problem context
+                //TODO:: CREATE A FUNCTION FOR EACH PROBLEM TYPE AND USE A SWITCH STATEMENT
+                if (problemChild.getNodeName().equals("choiceresponse")) {
+                    // GOAL match:
+                    // label = prompt
+                    // choice = simpleChoice
+
+                    Element correctResponse = doc.createElement("correctResponse");
+                    responseDeclaration.appendChild(correctResponse);
+
+                    // create choiceInteraction element
+                    Element choiceInteraction = doc.createElement("choiceInteraction");
+                    // also add the responseIdentifier to the choiceInteraction that matches the responseDeclaration
+                    choiceInteraction.setAttribute("responseIdentifier", responseIdentifier);
+                    choiceInteraction.setAttribute("shuffle", "true");
+                    choiceInteraction.setAttribute("maxChoices", "1");
+                    itemBody.appendChild(choiceInteraction);
+
+                    // the children of choiceresponse
+                    NodeList choiceResponseChildren = problemChild.getChildNodes();
+                    for (int j = 0; j < choiceResponseChildren.getLength(); j++) {
+
+                        // the children, such as: label, description ...
+                        Node choiceResponseChild = choiceResponseChildren.item(j);
+
+                        switch (choiceResponseChild.getNodeName()) {
+                            case "label":
+                                System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase() +
+                                        ", with text value \"" + choiceResponseChild.getTextContent() + "\"");
+                                Node labelElement = doc.createElement("prompt");
+                                labelElement.setTextContent(choiceResponseChild.getTextContent());
+                                choiceInteraction.appendChild(labelElement);
+                                break;
+                            case "description":
+                                System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase() +
+                                        ", with text value \"" + choiceResponseChild.getTextContent() + "\"");
+                                break;
+                            case "checkboxgroup":
+                                System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase());
+
+
+                                // loop through each choice of the Node "checkboxgroup"
+                                NodeList checkboxresponseChildren = choiceResponseChild.getChildNodes();
+                                char character = 'A';
+                                for (int k = 0; k < checkboxresponseChildren.getLength(); k++) {
+                                    Node choiceNode = checkboxresponseChildren.item(k);
+                                    if (choiceNode.getNodeName().equals("choice")) {
+                                        String correctness = choiceNode.getAttributes().item(0).getTextContent();
+                                        System.out.println("Correctness: " + correctness);
+                                        if (correctness.equals("true")) {
+                                            Element value = doc.createElement("value");
+                                            value.setTextContent(String.valueOf(character));
+                                            correctResponse.appendChild(value);
+                                        }
+                                        Element simpleChoice = doc.createElement("simpleChoice");
+                                        simpleChoice.setAttribute("identifier", String.valueOf(character++));
+                                        simpleChoice.setTextContent(choiceNode.getTextContent());
+                                        choiceInteraction.appendChild(simpleChoice);
+                                    }
+                                }
+
+                                // if more answers are right, set the "cardinality" attribute of responseDec to multiple
+                                // else to single
+                                if (correctResponse.getChildNodes().getLength() > 1) {
+                                    responseDeclaration.setAttribute("cardinality", "multiple");
+                                } else {
+                                    responseDeclaration.setAttribute("cardinality", "single");
+                                }
+                                break;
+                        }
+                    }
+                }
+            }
+
+
+            doc.removeChild(problemNode);
+
+            // every element that comes is the root element and children of root element come here, because we can only
+            // create a new root element if there is not one. That is why we delete the problem element and create a
+            // assessmentItem element and its children.
+            Node assessmentItemNode = doc.createElement("assessmentItem");
+            Node assessmentItemNod = doc.appendChild(assessmentItemNode);
+            Element assessmentItem = doc.getDocumentElement();
+            assessmentItem.setAttribute("xmlns", "http://www.imsglobal.org/xsd/imsqti_v2p1");
+            assessmentItem.setAttribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
+            assessmentItem.setAttribute("xsi:schemaLocation", "http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1p1.xsd");
+            assessmentItem.setAttribute("identifier", problem.getId());
+            assessmentItem.setAttribute("title", problem.getName());
+            assessmentItem.setAttribute("adaptive", "false");
+            assessmentItem.setAttribute("timeDependent", "false");
+
+            assessmentItem.appendChild(responseDeclaration);
+            assessmentItem.appendChild(itemBody);
+
+            // write the content into xml file
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            Transformer transformer = transformerFactory.newTransformer();
+            DOMSource source = new DOMSource(doc);
+            String problemFilePath = "src/main/java/open/edx/qticonverter/files/" + problem.getName() + ".xml";
+            StreamResult result = new StreamResult(problemFilePath);
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.transform(source, result);
+
+            ZipUtil.pack(new File("src/main/java/open/edx/qticonverter/files/"), new File("src/main/java/open/edx/qticonverter/zipfiles/" + problem.getName() + ".zip"));
+
+
+
+            // DOM PARSER -> JAVA OBJECT CREATED -> XML DOCUMENT CREATED -> XML FILE CREATED
 //            if (doc.hasChildNodes()) {
 //
-//                printNote(doc.getChildNodes());
+//                visitChildNodes(doc.getChildNodes());
 //
 //            }
-//
+
+
+            // WITH JACKSON LIBRARY
 //            if (TEST_XML_STRING.contains("checkboxgroup")) {
 //                ObjectMapper objectMapper = new XmlMapper();
 //                objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -278,11 +407,13 @@ public class CourseService {
 //                System.out.println(((Map) singleChoiceProblem.getChoiceresponse().getChoice().get(0)).get("choice"));
 //                System.out.println(((Map) singleChoiceProblem.getChoiceresponse().getChoice().get(0)).get(""));
 //            }
-//
-//
-//        } catch (IOException | SAXException | ParserConfigurationException ex) {
-//            throw new IOException();
-//        }
+
+
+        } catch (IOException | SAXException | ParserConfigurationException | TransformerConfigurationException ex) {
+            throw new IOException();
+        } catch (TransformerException e) {
+            e.printStackTrace();
+        }
 
         try {
             JSONObject xmlJSONObj = XML.toJSONObject(TEST_XML_STRING);
@@ -299,42 +430,79 @@ public class CourseService {
         vertical.addChildBlock(problem);
     }
 
-    private static void printNote(NodeList nodeList) {
+    private void visitChildNodes(NodeList nList) {
+        for (int temp = 0; temp < nList.getLength(); temp++) {
+            Node node = nList.item(temp);
+//            System.out.println("Node:");
+//            System.out.println(node.getNodeName());
 
-        for (int count = 0; count < nodeList.getLength(); count++) {
-
-            Node tempNode = nodeList.item(count);
-
-            // make sure it's element node.
-            if (tempNode.getNodeType() == Node.ELEMENT_NODE) {
-
-                // get node name and value
-                System.out.println("\nNode Name =" + tempNode.getNodeName() + " [OPEN]");
-                System.out.println("Node Value =" + tempNode.getTextContent());
-
-                if (tempNode.hasAttributes()) {
-
-                    // get attributes names and values
-                    NamedNodeMap nodeMap = tempNode.getAttributes();
-
-                    for (int i = 0; i < nodeMap.getLength(); i++) {
-
-                        Node node = nodeMap.item(i);
-                        System.out.println("attr name : " + node.getNodeName());
-                        System.out.println("attr value : " + node.getNodeValue());
-
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                System.out.println("Node Name = " + node.getNodeName() + "; Value = " + node.getTextContent());
+                if (node.getNodeName().contains("choiceresponse")) {
+                    checkBoxProblemConverter(node);
+                    if (node.getNextSibling() != null) {
+                        node = node.getNextSibling();
                     }
-
                 }
 
-                if (tempNode.hasChildNodes()) {
-                    // loop again if has child nodes
-                    printNote(tempNode.getChildNodes());
+                //Check all attributes
+                if (node.hasAttributes()) {
+                    // get attributes names and values
+                    NamedNodeMap nodeMap = node.getAttributes();
+                    for (int i = 0; i < nodeMap.getLength(); i++) {
+                        Node tempNode = nodeMap.item(i);
+                        System.out.println("Attr name : " + tempNode.getNodeName() + "; Value = " + tempNode.getNodeValue());
+                    }
                 }
-                System.out.println("Node Name =" + tempNode.getNodeName() + " [CLOSE]");
+                if (node.hasChildNodes()) {
+                    //We got more childs; Let's visit them as well
+                    visitChildNodes(node.getChildNodes());
+                }
             }
         }
+    }
 
+    private void checkBoxProblemConverter(Node node) {
+        SingleChoice singleChoice = new SingleChoice();
+        if (node.hasChildNodes()) {
+            NodeList nodeList = node.getChildNodes();
+            for (int i = 0; i < nodeList.getLength(); i++) {
+                System.out.println("CHild node name: " + nodeList.item(i).getNodeName());
+                System.out.println("CHild node value: " + nodeList.item(i).getTextContent());
+                switch (nodeList.item(i).getNodeName()) {
+                    case "label":
+                        singleChoice.setLabel(nodeList.item(i).getTextContent());
+                        break;
+                    case "description":
+                        singleChoice.setDescription(nodeList.item(i).getTextContent());
+                        break;
+                    case "checkboxgroup":
+                        Node checkBoxNode = nodeList.item(i);
+                        CheckboxGroup checkboxGroup = new CheckboxGroup();
+                        List<Choice> choiceList = new ArrayList<>();
+                        if (checkBoxNode.hasChildNodes()) {
+                            NodeList nList = checkBoxNode.getChildNodes();
+                            for (int j = 0; j < nList.getLength(); j++) {
+                                System.out.println(checkBoxNode.getNodeName());
+                                System.out.println(nList.item(j));
+                                if (nList.item(j).getNodeName().equals("choice")) {
+                                    Choice choice = new Choice();
+                                    choice.setCorrect(nList.item(j).getAttributes().item(0).getTextContent());
+                                    choice.setText(nList.item(j).getTextContent());
+                                    choiceList.add(choice);
+                                    System.out.println("-------------------");
+                                    System.out.println(choice.getCorrect() + "\t" + choice.getText());
+                                    System.out.println("-------------------");
+                                }
+                            }
+                        }
+                        break;
+                    default:
+                }
+            }
+        }
+        System.out.println("Label: " + singleChoice.getLabel());
+        System.out.println("Description: " + singleChoice.getDescription());
     }
 
     private static Document toXmlDocument(String str) throws ParserConfigurationException, SAXException, IOException {
