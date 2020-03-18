@@ -28,12 +28,12 @@ public class CourseController{
     }
 
     @GetMapping()
-    public List<Course> courses() throws IOException {
+    public List<Course> courses() throws Exception {
         return courseService.getCourses();
     }
 
     @GetMapping("/{id}")
-    public Course getCourseById(@PathVariable ObjectId id) throws IOException {
+    public Course getCourseById(@PathVariable ObjectId id) throws Exception {
         return courseService.getCourseById(id.toHexString());
     }
 }

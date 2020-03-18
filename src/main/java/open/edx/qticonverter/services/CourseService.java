@@ -1,14 +1,11 @@
 package open.edx.qticonverter.services;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import open.edx.qticonverter.models.*;
 import open.edx.qticonverter.models.Questions.CheckboxGroup;
 import open.edx.qticonverter.models.Questions.Choice;
 import open.edx.qticonverter.models.Questions.SingleChoice;
 import open.edx.qticonverter.models.interfaces.XmlAttributes;
+import open.edx.qticonverter.models.qti.manifest.Manifest;
 import open.edx.qticonverter.mongomodel.Definition;
 import open.edx.qticonverter.mongomodel.Version;
 import open.edx.qticonverter.repositories.Definitions;
@@ -34,8 +31,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -52,7 +47,7 @@ public class CourseService {
         this.definition = definitions;
     }
 
-    public List<Course> getCourses() throws IOException {
+    public List<Course> getCourses() throws Exception {
         ArrayList<Course> courses = new ArrayList<>();
         //Get Active versions from repo
         List<Version> all = versions.findAll();
@@ -68,26 +63,42 @@ public class CourseService {
                 course.setName(version.getCourse());
                 course.setStructure(structures.findById(publishedBranchId).get());
 
-                addChapters(course);
+                // create Manifest document
+                Manifest manifest = new Manifest();
+                manifest.setMetadata("QTI2.1 Pckg", "1.1.4");
+
+                addChapters(course, manifest);
                 courses.add(course);
+
+                String fileName = course.getName().trim().concat(course.getId().trim());
+                ZipUtil.pack(new File("src/main/java/open/edx/qticonverter/"), new File("src/main/java/open/edx/qticonverter/zipfiles/" + fileName + ".zip"));
             }
         }
         return courses;
     }
 
-    public Course getCourseById(String courseId) throws IOException {
+    public Course getCourseById(String courseId) throws Exception {
         //Get Active versions from repo
         List<Version> all = versions.findAll();
         Course course = new Course();
         for (Version version : all) {
             if (version.getId().equals(courseId)) {
                 course.setId(version.getId());
-                course.setName("Hallo id");
+                course.setName(version.getCourse());
 
                 //Get published branch
                 ObjectId publishedBranchId = version.getVersions().getPublished_branch();
                 course.setStructure(structures.findById(publishedBranchId).get());
-                addChapters(course);
+
+                File file = new File("src/main/java/open/edx/qticonverter/files/" + course.getId() + "/");
+                boolean mkdir = file.mkdir();
+
+                // create Manifest document
+                Manifest manifest = new Manifest();
+                manifest.setMetadata("QTI2.1 Pckg", "1.1.4");
+
+                addChapters(course, manifest);
+                ZipUtil.pack(new File("src/main/java/open/edx/qticonverter/files/"), new File("src/main/java/open/edx/qticonverter/zipfiles/" + course.getName() + course.getId() + ".zip"));
             }
         }
         return course;
@@ -99,7 +110,7 @@ public class CourseService {
     // If we look at the structures collection we may have 5 versions of the same course but we
     // want to get the latest version from the active_versions collections
 
-    private void addChapters(Course course) throws IOException {
+    private void addChapters(Course course, Manifest manifest) throws Exception {
         // Find the course in blocks and add the children as Chapter
         // Whereby the chapters can be found in the fields property->children->[chapter, "ObjectId"]
         // getBlocks are the
@@ -133,7 +144,7 @@ public class CourseService {
                         if (chapterChildrenValue != null) {
                             for (List chapterChild : chapterChildrenValue) {
                                 // after each property of Chapter obj (name, xml_attr ..) is set we add the sequentials property
-                                addSequentials(course, chapter, chapterChild.get(1).toString());
+                                addSequentials(course, chapter, chapterChild.get(1).toString(), manifest);
                             }
                         }
                     }
@@ -147,7 +158,7 @@ public class CourseService {
     // Get courses();
     // contains all chapters which again contains sequentials ...
 
-    private void addSequentials(Course course, Chapter chapter, String sequentialId) throws IOException {
+    private void addSequentials(Course course, Chapter chapter, String sequentialId, Manifest manifest) throws Exception {
         Map sequentials = course.getStructure().getBlocks().stream().filter(blockmap -> blockmap.containsKey("block_id") &&
                 blockmap.get("block_id").toString().equals(sequentialId)).findFirst().get();
 
@@ -165,13 +176,13 @@ public class CourseService {
         // after each property of Sequential obj (name, xml_attr ..) is set we add the vertical property
         if (sequentialChildrenValue != null) {
             for (List sequentialChild : sequentialChildrenValue) {
-                addVerticals(course, sequential, sequentialChild.get(1).toString());
+                addVerticals(course, sequential, sequentialChild.get(1).toString(), manifest);
             }
         }
         chapter.addChildBlock(sequential);
     }
 
-    private void addVerticals(Course course, Sequential sequential, String verticalId) throws IOException {
+    private void addVerticals(Course course, Sequential sequential, String verticalId, Manifest manifest) throws Exception {
         Map verticals = course.getStructure().getBlocks().stream().filter(blockmap -> blockmap.containsKey("block_id") &&
                 blockmap.get("block_id").toString().equals(verticalId)).findFirst().get();
 
@@ -188,16 +199,37 @@ public class CourseService {
 
         // after each property of Sequential obj (name, xml_attr ..) is set we add the vertical property
         if (verticalChildrenValue != null) {
+            List<String> problemReferences = new ArrayList<>();
             for (List verticalChild : verticalChildrenValue) {
                 if (verticalChild.get(0).toString().equalsIgnoreCase("problem")) {
-                    addProblems(course, vertical, verticalChild.get(1).toString());
+                    addProblems(course, vertical, verticalChild.get(1).toString(), manifest);
+                    for (Problem problem : vertical.getProblems()) {
+                        problemReferences.add(problem.getId());
+                    }
                 }
             }
+            if (!problemReferences.isEmpty()) {
+                manifest.addResource(course.getId(),
+                        "imsqti_test_xmlv2p1",
+                        course.getName() + "-" + course.getId() + ".xml", // we use course because, this is what is used in the assessment part element
+                        problemReferences);                                     //TODO:: maybe try to do this manifest add and XML transform underneath in getCourses()
+            }
+            // write the content into manifest xml file
+            // NOTE: if you want the thespart to be something else (sequential ...) you need to move this transform code
+            // over to the add* method. This piece of code creates parses the DOM into an XML file
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            Transformer transformer = transformerFactory.newTransformer();
+            DOMSource manifestSource = new DOMSource(manifest.getDocument());
+            String problemFilePath2 = "src/main/java/open/edx/qticonverter/files/" + course.getId() + "/" + "imsmanifest.xml";
+            StreamResult result2 = new StreamResult(problemFilePath2);
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.transform(manifestSource, result2);
+
         }
         sequential.addChildBlock(vertical);
     }
 
-    private void addProblems(Course course, Vertical vertical, String problemId) throws IOException {
+    private void addProblems(Course course, Vertical vertical, String problemId, Manifest manifest) throws IOException {
         Map problems = course.getStructure().getBlocks().stream().filter(blockmap -> blockmap.containsKey("block_id") &&
                 blockmap.get("block_id").toString().equals(problemId)).findFirst().get();
 
@@ -257,8 +289,8 @@ public class CourseService {
         try {
 //            System.out.println("Sample.xml contents = " + TEST_XML_STRING);
 
-            Document doc = toXmlDocument(TEST_XML_STRING);
-            System.out.println("XML STRING: " + TEST_XML_STRING);
+            Document doc = stringToXmlDocument(TEST_XML_STRING);
+//            System.out.println("XML STRING: " + TEST_XML_STRING);
 
 
             // DOM PARSER -> DOM TRANSFORM -> XML FILE CREATED
@@ -294,7 +326,6 @@ public class CourseService {
                     // also add the responseIdentifier to the choiceInteraction that matches the responseDeclaration
                     choiceInteraction.setAttribute("responseIdentifier", responseIdentifier);
                     choiceInteraction.setAttribute("shuffle", "true");
-                    choiceInteraction.setAttribute("maxChoices", "1");
                     itemBody.appendChild(choiceInteraction);
 
                     // the children of choiceresponse
@@ -347,6 +378,9 @@ public class CourseService {
                                 } else {
                                     responseDeclaration.setAttribute("cardinality", "single");
                                 }
+                                // if length of correct answers is more than 1 we get a multiple choice so we need to
+                                // set the maxChoices to the amount of correct answers that can be selected in an interaction
+                                choiceInteraction.setAttribute("maxChoices", String.valueOf(correctResponse.getChildNodes().getLength()));
                                 break;
                         }
                     }
@@ -373,17 +407,21 @@ public class CourseService {
             assessmentItem.appendChild(responseDeclaration);
             assessmentItem.appendChild(itemBody);
 
-            // write the content into xml file
+            // add resource (item/problem) to manifest
+            manifest.addResource(problem.getId().trim(),
+                    "imsqti_item_xmlv2p1",
+                    problem.getName() + "-" + problem.getId() + ".xml",
+                    null
+            );
+
+            // write the content into item xml file
             TransformerFactory transformerFactory = TransformerFactory.newInstance();
             Transformer transformer = transformerFactory.newTransformer();
             DOMSource source = new DOMSource(doc);
-            String problemFilePath = "src/main/java/open/edx/qticonverter/files/" + problem.getName() + ".xml";
+            String problemFilePath = "src/main/java/open/edx/qticonverter/files/" + course.getId() + "/" + problem.getName() + "-" + problem.getId() + ".xml";
             StreamResult result = new StreamResult(problemFilePath);
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.transform(source, result);
-
-            ZipUtil.pack(new File("src/main/java/open/edx/qticonverter/files/"), new File("src/main/java/open/edx/qticonverter/zipfiles/" + problem.getName() + ".zip"));
-
 
 
             // DOM PARSER -> JAVA OBJECT CREATED -> XML DOCUMENT CREATED -> XML FILE CREATED
@@ -505,7 +543,7 @@ public class CourseService {
         System.out.println("Description: " + singleChoice.getDescription());
     }
 
-    private static Document toXmlDocument(String str) throws ParserConfigurationException, SAXException, IOException {
+    private static Document stringToXmlDocument(String str) throws ParserConfigurationException, SAXException, IOException {
 
         DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docBuilderFactory.newDocumentBuilder();
