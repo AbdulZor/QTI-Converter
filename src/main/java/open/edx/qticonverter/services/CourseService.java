@@ -64,6 +64,10 @@ public class CourseService {
                 course.setName(version.getCourse());
                 course.setStructure(structures.findById(publishedBranchId).get());
 
+                File file = new File("src/main/java/open/edx/qticonverter/files/" + course.getId() + "/");
+                FileUtils.deleteDirectory(file);
+                file.mkdir();
+
                 // create Manifest document
                 Manifest manifest = new Manifest();
                 manifest.setMetadata("QTI2.1 Pckg", "1.1.4");
