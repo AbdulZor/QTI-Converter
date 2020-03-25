@@ -537,7 +537,6 @@ public class CourseService {
         outcomeMaxDeclaration.appendChild(maxDefaultValue);
         assessmentItemNode.appendChild(outcomeMaxDeclaration); //append to assessmentItem
 
-
         // setup itemBody element
         Element itemBody = doc.createElement("itemBody");
         Element responseProcessing = doc.createElement("responseProcessing");
