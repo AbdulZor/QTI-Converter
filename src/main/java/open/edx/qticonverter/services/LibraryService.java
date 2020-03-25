@@ -1,35 +1,29 @@
 package open.edx.qticonverter.services;
 
-import open.edx.qticonverter.models.Course;
 import open.edx.qticonverter.models.Library;
-import open.edx.qticonverter.mongomodel.Structure;
 import open.edx.qticonverter.mongomodel.Version;
-import open.edx.qticonverter.repositories.Structures;
-import open.edx.qticonverter.repositories.Versions;
+import open.edx.qticonverter.repositories.StructuresRepo;
+import open.edx.qticonverter.repositories.VersionsRepo;
 import org.bson.types.ObjectId;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 @Component
 public class LibraryService {
-    private final Versions versions;
-    private final Structures structures;
+    private final VersionsRepo versionsRepo;
+    private final StructuresRepo structuresRepo;
 
-    public LibraryService(Versions versions, Structures structures) {
-        this.versions = versions;
-        this.structures = structures;
+    public LibraryService(VersionsRepo versionsRepo, StructuresRepo structuresRepo) {
+        this.versionsRepo = versionsRepo;
+        this.structuresRepo = structuresRepo;
     }
 
     public List<Library> getLibraries() {
         ArrayList<Library> libraries = new ArrayList<>();
         //Get Active versions from repo
-        List<Version> all = versions.findAll();
+        List<Version> all = versionsRepo.findAll();
 
         for (Version version : all) {
             // Map each value of active_versions to create the Course object

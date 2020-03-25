@@ -8,9 +8,9 @@ import open.edx.qticonverter.models.interfaces.XmlAttributes;
 import open.edx.qticonverter.models.qti.manifest.Manifest;
 import open.edx.qticonverter.mongomodel.Definition;
 import open.edx.qticonverter.mongomodel.Version;
-import open.edx.qticonverter.repositories.Definitions;
-import open.edx.qticonverter.repositories.Structures;
-import open.edx.qticonverter.repositories.Versions;
+import open.edx.qticonverter.repositories.DefinitionsRepo;
+import open.edx.qticonverter.repositories.StructuresRepo;
+import open.edx.qticonverter.repositories.VersionsRepo;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.bson.types.ObjectId;
 import org.json.JSONException;
@@ -38,20 +38,32 @@ import java.util.stream.Collectors;
 
 @Component
 public class CourseService {
-    private final Versions versions;
-    private final Structures structures;
-    private final Definitions definition;
+/*
+ * Algemeen: heb de repos even hernoemd zodat duidelijk is of Versions een repo is of een model object.
+ * Voor de duidelijkheid zou ik het opbouwen van het course model losgemaakt hebben van het wegschrijven naar xml files
+ * en zip. Doordat het nu samen is kloppen de controllers op zich niet meer. Als je een lijstje courses wil hebben lukt
+ * dat niet zonder alles weg te schrijven.
+ *
+ * Qti versie 2.1 wordt nu gebruikt. Uiteindelijk moet dat 2.2 of zelfs 3.0 worden, maar dat zijn meer details dan iets
+ * anders. Als je echter de xml output op basis van een volledig opgebouwd course object maakt kan je ook meerdere
+ * versies output naast elkaar maken.
+ */
 
-    public CourseService(Versions versions, Structures structures, Definitions definitions) {
-        this.versions = versions;
-        this.structures = structures;
-        this.definition = definitions;
+
+    private final VersionsRepo versionsRepo;
+    private final StructuresRepo structuresRepo;
+    private final DefinitionsRepo definitionsRepo;
+
+    public CourseService(VersionsRepo versionsRepo, StructuresRepo structuresRepo, DefinitionsRepo definitionsRepo) {
+        this.versionsRepo = versionsRepo;
+        this.structuresRepo = structuresRepo;
+        this.definitionsRepo = definitionsRepo;
     }
 
     public List<Course> getCourses() throws Exception {
         ArrayList<Course> courses = new ArrayList<>();
         //Get Active versions from repo
-        List<Version> all = versions.findAll();
+        List<Version> all = versionsRepo.findAll();
 
         for (Version version : all) {
             // Map each value of active_versions to create the Course object
@@ -62,7 +74,7 @@ public class CourseService {
                 Course course = new Course();
                 course.setId(version.getId());
                 course.setName(version.getCourse());
-                course.setStructure(structures.findById(publishedBranchId).get());
+                course.setStructure(structuresRepo.findById(publishedBranchId).get());
 
                 // create Manifest document
                 Manifest manifest = new Manifest();
@@ -80,7 +92,7 @@ public class CourseService {
 
     public Course getCourseById(String courseId) throws Exception {
         //Get Active versions from repo
-        List<Version> all = versions.findAll();
+        List<Version> all = versionsRepo.findAll();
         Course course = new Course();
         for (Version version : all) {
             if (version.getId().equals(courseId)) {
@@ -89,7 +101,7 @@ public class CourseService {
 
                 //Get published branch
                 ObjectId publishedBranchId = version.getVersions().getPublished_branch();
-                course.setStructure(structures.findById(publishedBranchId).get());
+                course.setStructure(structuresRepo.findById(publishedBranchId).get());
 
                 File file = new File("src/main/java/open/edx/qticonverter/files/" + course.getId() + "/");
                 FileUtils.deleteDirectory(file);
@@ -256,7 +268,7 @@ public class CourseService {
 //        System.out.println("---------------------------------------------");
 
 //        System.out.println("Definition attributes");
-        Optional<Definition> definitionOptional = this.definition.findById((ObjectId) problems.get("definition"));
+        Optional<Definition> definitionOptional = this.definitionsRepo.findById((ObjectId) problems.get("definition"));
 
 //        System.out.println("Block Type: " + definitionOptional.get().getBlockType() + "\n");
 //        System.out.println("Fields: " + definitionOptional.get().getFields() + "\n");

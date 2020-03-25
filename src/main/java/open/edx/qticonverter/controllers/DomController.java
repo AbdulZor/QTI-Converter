@@ -4,17 +4,17 @@ import open.edx.qticonverter.models.Questions.CheckboxGroup;
 import open.edx.qticonverter.models.Questions.Choice;
 import open.edx.qticonverter.models.Questions.SingleChoice;
 import open.edx.qticonverter.services.dom.DomConverter;
-import open.edx.qticonverter.services.xslt.XsltConverter;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.w3c.dom.*;
 
-import javax.security.auth.callback.CallbackHandler;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @RequestMapping("dom")
@@ -22,14 +22,18 @@ import java.util.logging.Logger;
 public class DomController {
     private final DomConverter domConverter;
 
+    //Parser that produces DOM object trees from XML content
+    //Since it is a factory object, declare it on Controller level so you don't need a new factory on every call
+    private static final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+
+    private static final Logger logger = Logger.getLogger(DomController.class.getName());
+
     public DomController(DomConverter domConverter) {
         this.domConverter = domConverter;
     }
 
     @RequestMapping()
     public Document getDom() {
-        //Parser that produces DOM object trees from XML content
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 
         //API to obtain DOM Document instance
         DocumentBuilder builder = null;
@@ -39,17 +43,16 @@ public class DomController {
 
             //Parse the content to Document object
             Document doc = builder.parse(new File("src/main/java/open/edx/qticonverter/olx-files/course/problem/qtiConvertFile.xml"));
-            System.out.println(doc.getFirstChild().getAttributes().getLength());
+            // use a loger instead of System.out
+            logger.log(Level.INFO, "Number of attributes: {}", doc.getFirstChild().getAttributes().getLength());
 
+            // Nice Stackoverflow copy :)
             //Normalize the XML Structure; It's just too important !!
             doc.getDocumentElement().normalize();
 
-//            System.out.println(doc.getFirstChild().getAttributes().getLength());
-//            System.out.println(doc.getFirstChild().getChildNodes().getLength());
-
-            for (int i = 0; i < doc.getFirstChild().getChildNodes().getLength(); i++) {
+//            for (int i = 0; i < doc.getFirstChild().getChildNodes().getLength(); i++) {
 //                System.out.println(doc.getFirstChild().getChildNodes().item(i).getNodeName());
-            }
+///            }
 
             //Here comes the root node
             Element root = doc.getDocumentElement();
@@ -59,9 +62,6 @@ public class DomController {
 
             visitChildNodes(nList);
 
-
-
-
             return doc;
         } catch (Exception e) {
             e.printStackTrace();
@@ -70,6 +70,7 @@ public class DomController {
     }
 
     private void visitChildNodes(NodeList nList) {
+
         for (int temp = 0; temp < nList.getLength(); temp++) {
             Node node = nList.item(temp);
 //            System.out.println("Node:");
@@ -142,6 +143,8 @@ public class DomController {
                 }
             }
         }
+
+        //Again: prefer logger for this
         System.out.println("-------------------------");
         System.out.println("Title: " + singleChoice.getTitle());
         System.out.println("Label: " + singleChoice.getLabel());
