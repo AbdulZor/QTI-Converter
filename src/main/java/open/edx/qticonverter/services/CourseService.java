@@ -11,6 +11,7 @@ import open.edx.qticonverter.mongomodel.Version;
 import open.edx.qticonverter.repositories.Definitions;
 import open.edx.qticonverter.repositories.Structures;
 import open.edx.qticonverter.repositories.Versions;
+import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.bson.types.ObjectId;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -91,7 +92,9 @@ public class CourseService {
                 course.setStructure(structures.findById(publishedBranchId).get());
 
                 File file = new File("src/main/java/open/edx/qticonverter/files/" + course.getId() + "/");
-                boolean mkdir = file.mkdir();
+                FileUtils.deleteDirectory(file);
+                file.mkdir();
+
 
                 // create Manifest document
                 Manifest manifest = new Manifest();
@@ -243,7 +246,7 @@ public class CourseService {
         Map problemField = (Map) problems.get("fields");
 
 
-        problem.setName(problemField.get("display_name").toString());
+        problem.setName(problemField.get("display_name") != null ? problemField.get("display_name").toString() : "");
 
         addXmlAttributes(problem, problemField);
 
@@ -290,23 +293,19 @@ public class CourseService {
 //            System.out.println("Sample.xml contents = " + TEST_XML_STRING);
 
             Document doc = stringToXmlDocument(TEST_XML_STRING);
-//            System.out.println("XML STRING: " + TEST_XML_STRING);
+            System.out.println("XML STRING: " + TEST_XML_STRING);
 
 
             // DOM PARSER -> DOM TRANSFORM -> XML FILE CREATED
             Element problemNode = doc.getDocumentElement();
 
-            // create responseDeclaration element with its child correctResponse
-            Element responseDeclaration = doc.createElement("responseDeclaration");
-            String responseIdentifier = "RESPONSE";
-            responseDeclaration.setAttribute("identifier", responseIdentifier);
-            responseDeclaration.setAttribute("baseType", "identifier");
 
-            Element itemBody = doc.createElement("itemBody");
 //            Node node = problemNode.getChildNodes().item(0).getChildNodes().
 //            itemBody.appendChild()
 
             NodeList problemChildren = problemNode.getChildNodes();
+
+            Node assessmentItemNode = doc.createElement("assessmentItem");
 
             for (int i = 0; i < problemChildren.getLength(); i++) {
                 Node problemChild = problemChildren.item(i);
@@ -317,73 +316,10 @@ public class CourseService {
                     // GOAL match:
                     // label = prompt
                     // choice = simpleChoice
+                    buildMultipleChoiceItem(doc, problemField, problemChild, assessmentItemNode);
 
-                    Element correctResponse = doc.createElement("correctResponse");
-                    responseDeclaration.appendChild(correctResponse);
-
-                    // create choiceInteraction element
-                    Element choiceInteraction = doc.createElement("choiceInteraction");
-                    // also add the responseIdentifier to the choiceInteraction that matches the responseDeclaration
-                    choiceInteraction.setAttribute("responseIdentifier", responseIdentifier);
-                    choiceInteraction.setAttribute("shuffle", "true");
-                    itemBody.appendChild(choiceInteraction);
-
-                    // the children of choiceresponse
-                    NodeList choiceResponseChildren = problemChild.getChildNodes();
-                    for (int j = 0; j < choiceResponseChildren.getLength(); j++) {
-
-                        // the children, such as: label, description ...
-                        Node choiceResponseChild = choiceResponseChildren.item(j);
-
-                        switch (choiceResponseChild.getNodeName()) {
-                            case "label":
-                                System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase() +
-                                        ", with text value \"" + choiceResponseChild.getTextContent() + "\"");
-                                Node labelElement = doc.createElement("prompt");
-                                labelElement.setTextContent(choiceResponseChild.getTextContent());
-                                choiceInteraction.appendChild(labelElement);
-                                break;
-                            case "description":
-                                System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase() +
-                                        ", with text value \"" + choiceResponseChild.getTextContent() + "\"");
-                                break;
-                            case "checkboxgroup":
-                                System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase());
-
-
-                                // loop through each choice of the Node "checkboxgroup"
-                                NodeList checkboxresponseChildren = choiceResponseChild.getChildNodes();
-                                char character = 'A';
-                                for (int k = 0; k < checkboxresponseChildren.getLength(); k++) {
-                                    Node choiceNode = checkboxresponseChildren.item(k);
-                                    if (choiceNode.getNodeName().equals("choice")) {
-                                        String correctness = choiceNode.getAttributes().item(0).getTextContent();
-                                        System.out.println("Correctness: " + correctness);
-                                        if (correctness.equals("true")) {
-                                            Element value = doc.createElement("value");
-                                            value.setTextContent(String.valueOf(character));
-                                            correctResponse.appendChild(value);
-                                        }
-                                        Element simpleChoice = doc.createElement("simpleChoice");
-                                        simpleChoice.setAttribute("identifier", String.valueOf(character++));
-                                        simpleChoice.setTextContent(choiceNode.getTextContent());
-                                        choiceInteraction.appendChild(simpleChoice);
-                                    }
-                                }
-
-                                // if more answers are right, set the "cardinality" attribute of responseDec to multiple
-                                // else to single
-                                if (correctResponse.getChildNodes().getLength() > 1) {
-                                    responseDeclaration.setAttribute("cardinality", "multiple");
-                                } else {
-                                    responseDeclaration.setAttribute("cardinality", "single");
-                                }
-                                // if length of correct answers is more than 1 we get a multiple choice so we need to
-                                // set the maxChoices to the amount of correct answers that can be selected in an interaction
-                                choiceInteraction.setAttribute("maxChoices", String.valueOf(correctResponse.getChildNodes().getLength()));
-                                break;
-                        }
-                    }
+                } else if (problemChild.getNodeName().equals("multiplechoiceresponse")) {
+                    buildChoiceBoxItem(doc, problemField, problemChild, assessmentItemNode);
                 }
             }
 
@@ -393,7 +329,7 @@ public class CourseService {
             // every element that comes is the root element and children of root element come here, because we can only
             // create a new root element if there is not one. That is why we delete the problem element and create a
             // assessmentItem element and its children.
-            Node assessmentItemNode = doc.createElement("assessmentItem");
+
             Node assessmentItemNod = doc.appendChild(assessmentItemNode);
             Element assessmentItem = doc.getDocumentElement();
             assessmentItem.setAttribute("xmlns", "http://www.imsglobal.org/xsd/imsqti_v2p1");
@@ -403,9 +339,6 @@ public class CourseService {
             assessmentItem.setAttribute("title", problem.getName());
             assessmentItem.setAttribute("adaptive", "false");
             assessmentItem.setAttribute("timeDependent", "false");
-
-            assessmentItem.appendChild(responseDeclaration);
-            assessmentItem.appendChild(itemBody);
 
             // add resource (item/problem) to manifest
             manifest.addResource(problem.getId().trim(),
@@ -467,6 +400,232 @@ public class CourseService {
 
         vertical.addChildBlock(problem);
     }
+
+
+    private void buildChoiceBoxItem(Document doc, Map problemField, Node problemChild, Node assessmentItemNode) {
+        // create responseDeclaration element with its child correctResponse
+        Element responseDeclaration = doc.createElement("responseDeclaration");
+        String responseIdentifier = "RESPONSE";
+        responseDeclaration.setAttribute("identifier", responseIdentifier);
+        responseDeclaration.setAttribute("baseType", "identifier");
+
+        Element itemBody = doc.createElement("itemBody");
+        Element responseProcessing = doc.createElement("responseProcessing");
+        if (problemField.get("weight") != null) {
+            responseDeclaration.setAttribute("MAX_SCORE", problemField.get("weight").toString());
+        }
+
+        Element correctResponse = doc.createElement("correctResponse");
+        responseDeclaration.appendChild(correctResponse);
+
+        // create choiceInteraction element
+        Element choiceInteraction = doc.createElement("choiceInteraction");
+        // also add the responseIdentifier to the choiceInteraction that matches the responseDeclaration
+        choiceInteraction.setAttribute("responseIdentifier", responseIdentifier);
+        choiceInteraction.setAttribute("shuffle", "true");
+        itemBody.appendChild(choiceInteraction);
+
+        Node prompt = doc.createElement("prompt");
+
+        // the children of choiceresponse
+        NodeList choiceResponseChildren = problemChild.getChildNodes();
+        for (int j = 0; j < choiceResponseChildren.getLength(); j++) {
+
+            // the children, such as: label, description ...
+            Node choiceResponseChild = choiceResponseChildren.item(j);
+
+            switch (choiceResponseChild.getNodeName()) {
+//                case "h3":
+//                    System.out.println("H3: " + choiceInteraction.getTextContent());
+//                    Element headerElement = doc.createElement("h3");
+//                    headerElement.setTextContent(choiceResponseChild.getTextContent());
+//                    prompt.appendChild(headerElement);
+//                    break;
+//                case "p":
+                case "label":
+                    System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase() +
+                            ", with text value \"" + choiceResponseChild.getTextContent() + "\"");
+                    System.out.println(prompt.getTextContent());
+                    Element paragraphElement = doc.createElement("p");
+                    paragraphElement.setTextContent(choiceResponseChild.getTextContent());
+                    prompt.appendChild(paragraphElement);
+                    break;
+                case "description":
+                    System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase() +
+                            ", with text value \"" + choiceResponseChild.getTextContent() + "\"");
+                    break;
+                case "choicegroup":
+                    System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase());
+
+                    // loop through each choice of the Node "checkboxgroup"
+                    NodeList checkboxresponseChildren = choiceResponseChild.getChildNodes();
+                    char character = 'A';
+                    for (int k = 0; k < checkboxresponseChildren.getLength(); k++) {
+                        Node choiceNode = checkboxresponseChildren.item(k);
+                        if (choiceNode.getNodeName().equals("choice")) {
+                            String correctness = choiceNode.getAttributes().item(0).getTextContent();
+                            System.out.println("Correctness: " + correctness);
+                            if (correctness.equals("true")) {
+                                Element value = doc.createElement("value");
+                                value.setTextContent(String.valueOf(character));
+                                correctResponse.appendChild(value);
+                            }
+                            Element simpleChoice = doc.createElement("simpleChoice");
+                            simpleChoice.setAttribute("identifier", String.valueOf(character++));
+                            simpleChoice.setTextContent(choiceNode.getTextContent());
+                            choiceInteraction.appendChild(simpleChoice);
+                        }
+                    }
+
+                    // if more answers are right, set the "cardinality" attribute of responseDec to multiple
+                    // else to single
+//                                if (correctResponse.getChildNodes().getLength() > 1) {
+                    responseDeclaration.setAttribute("cardinality", "single");
+//                                } else {
+//                                    responseDeclaration.setAttribute("cardinality", "single");
+//                                }
+                    // if length of correct answers is more than 1 we get a multiple choice so we need to
+                    // set the maxChoices to the amount of correct answers that can be selected in an interaction
+                    choiceInteraction.setAttribute("maxChoices", "1");
+                    break;
+                default:
+                    if (choiceResponseChild.getNodeName().equals("p") || choiceResponseChild.getNodeName().equals("h3")) {
+                        System.out.println(choiceResponseChild.getNodeName());
+                        prompt.appendChild(choiceResponseChild);
+                    }
+            }
+        }
+        choiceInteraction.appendChild(prompt);
+        assessmentItemNode.appendChild(responseDeclaration);
+        assessmentItemNode.appendChild(itemBody);
+        //add the response processing of the choicebox question item
+        assessmentItemNode.appendChild(responseProcessing);
+    }
+
+    private void buildMultipleChoiceItem(Document doc, Map problemField, Node problemChild, Node assessmentItemNode) {
+        // create responseDeclaration element with its child correctResponse
+        Element responseDeclaration = doc.createElement("responseDeclaration");
+        String responseIdentifier = "RESPONSE";
+        responseDeclaration.setAttribute("identifier", responseIdentifier);
+        responseDeclaration.setAttribute("baseType", "identifier");
+
+        // Create outcomeDeclaration SCORE
+        Element outcomeScoreDeclaration = doc.createElement("choiceDeclaration");
+        outcomeScoreDeclaration.setAttribute("identifier", "SCORE");
+        outcomeScoreDeclaration.setAttribute("cardinality", "single");
+        outcomeScoreDeclaration.setAttribute("baseType", "float");
+
+        Element scoreDefaultValue = doc.createElement("defaultValue");
+        Element defaultValue = doc.createElement("value");
+        defaultValue.setAttribute("baseType", "float");
+        scoreDefaultValue.appendChild(defaultValue);
+        scoreDefaultValue.setTextContent("0"); // initial score per item is 0
+        outcomeScoreDeclaration.appendChild(scoreDefaultValue);
+        assessmentItemNode.appendChild(outcomeScoreDeclaration); //append to assessmentItem
+
+        // Create outcomeDeclaration MAX_SCORE
+        Element outcomeMaxDeclaration = doc.createElement("choiceDeclaration");
+        outcomeMaxDeclaration.setAttribute("identifier", "MAX_SCORE");
+        outcomeMaxDeclaration.setAttribute("cardinality", "single");
+        outcomeMaxDeclaration.setAttribute("baseType", "float");
+
+        Element maxDefaultValue = doc.createElement("defaultValue");
+        Element defaultValue2 = doc.createElement("value");
+        defaultValue2.setAttribute("baseType", "float");
+        maxDefaultValue.appendChild(defaultValue2);
+        maxDefaultValue.setTextContent(problemField.get("weight") != null ? problemField.get("weight").toString() : "1");
+        outcomeMaxDeclaration.appendChild(maxDefaultValue);
+        assessmentItemNode.appendChild(outcomeMaxDeclaration); //append to assessmentItem
+
+        // setup itemBody element
+        Element itemBody = doc.createElement("itemBody");
+        Element responseProcessing = doc.createElement("responseProcessing");
+
+        Element correctResponse = doc.createElement("correctResponse");
+        responseDeclaration.appendChild(correctResponse);
+
+        // create choiceInteraction element
+        Element choiceInteraction = doc.createElement("choiceInteraction");
+        // also add the responseIdentifier to the choiceInteraction that matches the responseDeclaration
+        choiceInteraction.setAttribute("responseIdentifier", responseIdentifier);
+        choiceInteraction.setAttribute("shuffle", "true");
+        itemBody.appendChild(choiceInteraction);
+
+
+        // the children of choiceresponse
+        NodeList choiceResponseChildren = problemChild.getChildNodes();
+
+        Node prompt = doc.createElement("prompt");
+
+        for (int j = 0; j < choiceResponseChildren.getLength(); j++) {
+
+            // the children, such as: label, description ...
+            Node choiceResponseChild = choiceResponseChildren.item(j);
+
+
+            switch (choiceResponseChild.getNodeName()) {
+                case "label":
+                    System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase() +
+                            ", with text value \"" + choiceResponseChild.getTextContent() + "\"");
+                    System.out.println(prompt.getTextContent());
+                    Element paragraphElement = doc.createElement("p");
+                    paragraphElement.setTextContent(choiceResponseChild.getTextContent());
+                    prompt.appendChild(paragraphElement);
+                    break;
+                case "description":
+                    System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase() +
+                            ", with text value \"" + choiceResponseChild.getTextContent() + "\"");
+                    prompt.setTextContent(prompt.getTextContent() + choiceResponseChild.getTextContent());
+                    break;
+                case "checkboxgroup":
+                    System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase());
+
+                    // loop through each choice of the Node "checkboxgroup"
+                    NodeList checkboxresponseChildren = choiceResponseChild.getChildNodes();
+                    char character = 'A';
+                    for (int k = 0; k < checkboxresponseChildren.getLength(); k++) {
+                        Node choiceNode = checkboxresponseChildren.item(k);
+                        if (choiceNode.getNodeName().equals("choice")) {
+                            String correctness = choiceNode.getAttributes().item(0).getTextContent();
+                            System.out.println("Correctness: " + correctness);
+                            if (correctness.equals("true")) {
+                                Element value = doc.createElement("value");
+                                value.setTextContent(String.valueOf(character));
+                                correctResponse.appendChild(value);
+                            }
+                            Element simpleChoice = doc.createElement("simpleChoice");
+                            simpleChoice.setAttribute("identifier", String.valueOf(character++));
+                            simpleChoice.setTextContent(choiceNode.getTextContent());
+                            choiceInteraction.appendChild(simpleChoice);
+                        }
+                    }
+
+                    // if more answers are right, set the "cardinality" attribute of responseDec to multiple
+                    // else to single
+//                                if (correctResponse.getChildNodes().getLength() > 1) {
+                    responseDeclaration.setAttribute("cardinality", "multiple");
+//                                } else {
+//                                    responseDeclaration.setAttribute("cardinality", "single");
+//                                }
+                    // if length of correct answers is more than 1 we get a multiple choice so we need to
+                    // set the maxChoices to the amount of correct answers that can be selected in an interaction
+                    choiceInteraction.setAttribute("maxChoices", "0");
+                    break;
+                default:
+                    if (choiceResponseChild.getNodeName().equals("p") || choiceResponseChild.getNodeName().equals("h3")) {
+                        System.out.println(choiceResponseChild.getNodeName());
+                        prompt.appendChild(choiceResponseChild);
+                    }
+            }
+        }
+        choiceInteraction.appendChild(prompt);
+
+        assessmentItemNode.appendChild(responseDeclaration);
+        assessmentItemNode.appendChild(itemBody);
+        //add the response processing of the choicebox question item
+        assessmentItemNode.appendChild(responseProcessing);
+    }
+
 
     private void visitChildNodes(NodeList nList) {
         for (int temp = 0; temp < nList.getLength(); temp++) {
@@ -576,16 +735,17 @@ public class CourseService {
         }
     }
 
-//    //TODO:: Zorg ervoor dat je
-//    private void addChildrenToBlockObject(BlockTypeable blockTypeable, Map fieldValue) {
-//        List<List> childrenValue = (List) fieldValue.get("children");
-//
-//        // after each property of Chapter obj (name, xml_attr ..) is set we add the sequentials property
-//        if (childrenValue != null) {
-//            for (List child : childrenValue) {
-//                blockTypeable.addChildBlock(child.get(1).toString());
-//            }
-//        }
-//    }
+    public static void deleteFolder(File folder) {
+        File[] files = folder.listFiles();
+        if (files != null) { //some JVMs return null for empty dirs
+            for (File f : files) {
+                if (f.isDirectory()) {
+                    deleteFolder(f);
+                } else {
+                    f.delete();
+                }
+            }
+        }
+    }
 }
 
