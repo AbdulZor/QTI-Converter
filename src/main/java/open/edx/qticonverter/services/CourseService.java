@@ -5,13 +5,12 @@ import open.edx.qticonverter.models.Questions.CheckboxGroup;
 import open.edx.qticonverter.models.Questions.Choice;
 import open.edx.qticonverter.models.Questions.SingleChoice;
 import open.edx.qticonverter.models.interfaces.XmlAttributes;
-import open.edx.qticonverter.models.qti.manifest.Manifest;
 import open.edx.qticonverter.mongomodel.Definition;
 import open.edx.qticonverter.mongomodel.Version;
 import open.edx.qticonverter.repositories.Definitions;
 import open.edx.qticonverter.repositories.Structures;
 import open.edx.qticonverter.repositories.Versions;
-import org.apache.tomcat.util.http.fileupload.FileUtils;
+import open.edx.qticonverter.services.dom.DomConverter;
 import org.bson.types.ObjectId;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -20,7 +19,6 @@ import org.springframework.stereotype.Component;
 import org.w3c.dom.*;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
-import org.zeroturnaround.zip.ZipUtil;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -42,10 +40,13 @@ public class CourseService {
     private final Structures structures;
     private final Definitions definition;
 
-    public CourseService(Versions versions, Structures structures, Definitions definitions) {
+    private final DomConverter domConverter;
+
+    public CourseService(Versions versions, Structures structures, Definitions definitions, DomConverter domConverter) {
         this.versions = versions;
         this.structures = structures;
         this.definition = definitions;
+        this.domConverter = domConverter;
     }
 
     public List<Course> getCourses() throws Exception {
@@ -64,19 +65,13 @@ public class CourseService {
                 course.setName(version.getCourse());
                 course.setStructure(structures.findById(publishedBranchId).get());
 
-                File file = new File("src/main/java/open/edx/qticonverter/files/" + course.getId() + "/");
-                FileUtils.deleteDirectory(file);
-                file.mkdir();
 
-                // create Manifest document
-                Manifest manifest = new Manifest();
-                manifest.setMetadata("QTI2.1 Pckg", "1.1.4");
-
-                addChapters(course, manifest);
+                addChapters(course);
                 courses.add(course);
+                this.domConverter.createQtiPackage(course);
 
                 String fileName = course.getName().trim().concat(course.getId().trim());
-                ZipUtil.pack(new File("src/main/java/open/edx/qticonverter/"), new File("src/main/java/open/edx/qticonverter/zipfiles/" + fileName + ".zip"));
+//                ZipUtil.pack(new File("src/main/java/open/edx/qticonverter/"), new File("src/main/java/open/edx/qticonverter/zipfiles/" + fileName + ".zip"));
             }
         }
         return courses;
@@ -95,19 +90,11 @@ public class CourseService {
                 ObjectId publishedBranchId = version.getVersions().getPublished_branch();
                 course.setStructure(structures.findById(publishedBranchId).get());
 
-                File file = new File("src/main/java/open/edx/qticonverter/files/" + course.getId() + "/");
-                FileUtils.deleteDirectory(file);
-                file.mkdir();
-
-
-                // create Manifest document
-                Manifest manifest = new Manifest();
-                manifest.setMetadata("QTI2.1 Pckg", "1.1.4");
-
-                addChapters(course, manifest);
-                ZipUtil.pack(new File("src/main/java/open/edx/qticonverter/files/"), new File("src/main/java/open/edx/qticonverter/zipfiles/" + course.getName() + course.getId() + ".zip"));
+                addChapters(course);
+//                ZipUtil.pack(new File("src/main/java/open/edx/qticonverter/files/"), new File("src/main/java/open/edx/qticonverter/zipfiles/" + course.getName() + course.getId() + ".zip"));
             }
         }
+        this.domConverter.createQtiPackage(course);
         return course;
     }
 
@@ -117,7 +104,7 @@ public class CourseService {
     // If we look at the structures collection we may have 5 versions of the same course but we
     // want to get the latest version from the active_versions collections
 
-    private void addChapters(Course course, Manifest manifest) throws Exception {
+    private void addChapters(Course course) throws Exception {
         // Find the course in blocks and add the children as Chapter
         // Whereby the chapters can be found in the fields property->children->[chapter, "ObjectId"]
         // getBlocks are the
@@ -151,7 +138,7 @@ public class CourseService {
                         if (chapterChildrenValue != null) {
                             for (List chapterChild : chapterChildrenValue) {
                                 // after each property of Chapter obj (name, xml_attr ..) is set we add the sequentials property
-                                addSequentials(course, chapter, chapterChild.get(1).toString(), manifest);
+                                addSequentials(course, chapter, chapterChild.get(1).toString());
                             }
                         }
                     }
@@ -165,7 +152,7 @@ public class CourseService {
     // Get courses();
     // contains all chapters which again contains sequentials ...
 
-    private void addSequentials(Course course, Chapter chapter, String sequentialId, Manifest manifest) throws Exception {
+    private void addSequentials(Course course, Chapter chapter, String sequentialId) throws Exception {
         Map sequentials = course.getStructure().getBlocks().stream().filter(blockmap -> blockmap.containsKey("block_id") &&
                 blockmap.get("block_id").toString().equals(sequentialId)).findFirst().get();
 
@@ -183,13 +170,13 @@ public class CourseService {
         // after each property of Sequential obj (name, xml_attr ..) is set we add the vertical property
         if (sequentialChildrenValue != null) {
             for (List sequentialChild : sequentialChildrenValue) {
-                addVerticals(course, sequential, sequentialChild.get(1).toString(), manifest);
+                addVerticals(course, sequential, sequentialChild.get(1).toString());
             }
         }
         chapter.addChildBlock(sequential);
     }
 
-    private void addVerticals(Course course, Sequential sequential, String verticalId, Manifest manifest) throws Exception {
+    private void addVerticals(Course course, Sequential sequential, String verticalId) throws Exception {
         Map verticals = course.getStructure().getBlocks().stream().filter(blockmap -> blockmap.containsKey("block_id") &&
                 blockmap.get("block_id").toString().equals(verticalId)).findFirst().get();
 
@@ -206,37 +193,16 @@ public class CourseService {
 
         // after each property of Sequential obj (name, xml_attr ..) is set we add the vertical property
         if (verticalChildrenValue != null) {
-            List<String> problemReferences = new ArrayList<>();
             for (List verticalChild : verticalChildrenValue) {
                 if (verticalChild.get(0).toString().equalsIgnoreCase("problem")) {
-                    addProblems(course, vertical, verticalChild.get(1).toString(), manifest);
-                    for (Problem problem : vertical.getProblems()) {
-                        problemReferences.add(problem.getId());
-                    }
+                    addProblems(course, vertical, verticalChild.get(1).toString());
                 }
             }
-            if (!problemReferences.isEmpty()) {
-                manifest.addResource(course.getId(),
-                        "imsqti_test_xmlv2p1",
-                        course.getName() + "-" + course.getId() + ".xml", // we use course because, this is what is used in the assessment part element
-                        problemReferences);                                     //TODO:: maybe try to do this manifest add and XML transform underneath in getCourses()
-            }
-            // write the content into manifest xml file
-            // NOTE: if you want the thespart to be something else (sequential ...) you need to move this transform code
-            // over to the add* method. This piece of code creates parses the DOM into an XML file
-            TransformerFactory transformerFactory = TransformerFactory.newInstance();
-            Transformer transformer = transformerFactory.newTransformer();
-            DOMSource manifestSource = new DOMSource(manifest.getDocument());
-            String problemFilePath2 = "src/main/java/open/edx/qticonverter/files/" + course.getId() + "/" + "imsmanifest.xml";
-            StreamResult result2 = new StreamResult(problemFilePath2);
-            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            transformer.transform(manifestSource, result2);
-
         }
         sequential.addChildBlock(vertical);
     }
 
-    private void addProblems(Course course, Vertical vertical, String problemId, Manifest manifest) throws IOException {
+    private void addProblems(Course course, Vertical vertical, String problemId) throws IOException {
         Map problems = course.getStructure().getBlocks().stream().filter(blockmap -> blockmap.containsKey("block_id") &&
                 blockmap.get("block_id").toString().equals(problemId)).findFirst().get();
 
@@ -344,12 +310,6 @@ public class CourseService {
             assessmentItem.setAttribute("adaptive", "false");
             assessmentItem.setAttribute("timeDependent", "false");
 
-            // add resource (item/problem) to manifest
-            manifest.addResource(problem.getId().trim(),
-                    "imsqti_item_xmlv2p1",
-                    problem.getName() + "-" + problem.getId() + ".xml",
-                    null
-            );
 
             // write the content into item xml file
             TransformerFactory transformerFactory = TransformerFactory.newInstance();
