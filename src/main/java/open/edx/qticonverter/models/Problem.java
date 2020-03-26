@@ -4,6 +4,7 @@ import open.edx.qticonverter.models.interfaces.BlockTypeable;
 import open.edx.qticonverter.models.interfaces.XmlAttributes;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
+import org.springframework.util.Assert;
 
 import java.util.List;
 import java.util.Map;
@@ -13,7 +14,8 @@ public class Problem implements BlockTypeable, XmlAttributes {
     private String id;
     private String name;
     private List<String> xml_attributes;
-    private Map definition;
+    private String fileIdentifier;
+    private List<String> dependencyList;
 
     public String getId() {
         return id;
@@ -31,20 +33,33 @@ public class Problem implements BlockTypeable, XmlAttributes {
         this.name = name;
     }
 
-    public Map getDefinition() {
-        return definition;
-    }
-
-    public void setDefinition(Map definition) {
-        this.definition = definition;
-    }
-
     public List<String> getXml_attributes() {
         return xml_attributes;
     }
 
     public void setXml_attributes(List<String> xml_attributes) {
         this.xml_attributes = xml_attributes;
+    }
+
+    public String getFileIdentifier() {
+        Assert.notNull(id, "ID of problem cannot be \"null\"");
+        Assert.notNull(name, "Name of problem cannot be \"null\"");
+
+        this.fileIdentifier = id + "-" + name;
+
+        return fileIdentifier;
+    }
+
+    public void setFileIdentifier(String fileIdentifier) {
+        this.fileIdentifier = fileIdentifier;
+    }
+
+    public List<String> getDependencyList() {
+        return dependencyList;
+    }
+
+    public void setDependencyList(List<String> dependencyList) {
+        this.dependencyList = dependencyList;
     }
 
     @Override
