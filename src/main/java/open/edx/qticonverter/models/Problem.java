@@ -1,21 +1,23 @@
 package open.edx.qticonverter.models;
 
 import open.edx.qticonverter.models.interfaces.BlockTypeable;
-import open.edx.qticonverter.models.interfaces.XmlAttributes;
-import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
-import org.springframework.util.Assert;
 
 import java.util.List;
-import java.util.Map;
 
-public class Problem implements BlockTypeable, XmlAttributes {
+public class Problem implements BlockTypeable {
     @Id
     private String id;
+    private ProblemType problemType;
     private String name;
     private List<String> xml_attributes;
     private String fileIdentifier;
     private List<String> dependencyList;
+    private float weight;
+    private int max_attempts;
+
+    // add this feature later (QTI 2.2 feature)
+    private String styleSheetFilePath;
 
     public String getId() {
         return id;
@@ -23,6 +25,14 @@ public class Problem implements BlockTypeable, XmlAttributes {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public ProblemType getProblemType() {
+        return problemType;
+    }
+
+    public void setProblemType(ProblemType problemType) {
+        this.problemType = problemType;
     }
 
     public String getName() {
@@ -42,11 +52,6 @@ public class Problem implements BlockTypeable, XmlAttributes {
     }
 
     public String getFileIdentifier() {
-        Assert.notNull(id, "ID of problem cannot be \"null\"");
-        Assert.notNull(name, "Name of problem cannot be \"null\"");
-
-        this.fileIdentifier = id + "-" + name;
-
         return fileIdentifier;
     }
 
@@ -62,9 +67,40 @@ public class Problem implements BlockTypeable, XmlAttributes {
         this.dependencyList = dependencyList;
     }
 
+    public float getWeight() {
+        return weight;
+    }
+
+    public void setWeight(float weight) {
+        this.weight = weight;
+    }
+
+    public int getMax_attempts() {
+        return max_attempts;
+    }
+
+    public void setMax_attempts(int max_attempts) {
+        this.max_attempts = max_attempts;
+    }
+
     @Override
     public void addChildBlock(BlockTypeable child) {
         // NIET IMPLEMENTEREN, omdat problem geen child meer is
         // Anders doe je (addChapter, addVertical ...) handmatig in de (Course, Sequential ...) classes
+    }
+
+    @Override
+    public String toString() {
+        return "Problem{" +
+                "id='" + id + '\'' +
+                ", problemType=" + problemType +
+                ", name='" + name + '\'' +
+                ", xml_attributes=" + xml_attributes +
+                ", fileIdentifier='" + fileIdentifier + '\'' +
+                ", dependencyList=" + dependencyList +
+                ", weight=" + weight +
+                ", max_attempts=" + max_attempts +
+                ", styleSheetFilePath='" + styleSheetFilePath + '\'' +
+                '}';
     }
 }

@@ -13,12 +13,16 @@ public class Course implements BlockTypeable {
     private String id;
     private String name;
     private List<Chapter> chapters;
+    private List<Sequential> sequentials;
+    private List<Vertical> verticals;
+    private List<Problem> problems;
 
     @JsonIgnore
     private Structure structure;
 
     public Course() {
         this.chapters = new ArrayList<>();
+        this.problems = new ArrayList<>();
     }
 
     public String getId() {
@@ -54,10 +58,52 @@ public class Course implements BlockTypeable {
         this.structure = structure;
     }
 
+    public List<Sequential> getSequentials() {
+        return sequentials;
+    }
+
+    public void setSequentials(List<Sequential> sequentials) {
+        this.sequentials = sequentials;
+    }
+
+    public List<Vertical> getVerticals() {
+        return verticals;
+    }
+
+    public void setVerticals(List<Vertical> verticals) {
+        this.verticals = verticals;
+    }
+
+    public List<Problem> getProblems() {
+        return problems;
+    }
+
+    public void setProblems(List<Problem> problems) {
+        this.problems = problems;
+    }
+
     @Override
     public void addChildBlock(BlockTypeable child) {
         if (child != null) {
-            this.chapters.add((Chapter) child);
+            if (child.getClass().equals(Chapter.class))
+                this.chapters.add((Chapter) child);
+            else if (child.getClass().equals(Sequential.class))
+                this.sequentials.add((Sequential) child);
+            else if (child.getClass().equals(Vertical.class))
+                this.verticals.add((Vertical) child);
+            else if (child.getClass().equals(Problem.class))
+                this.problems.add((Problem) child);
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Course{" +
+                "id='" + id + '\'' +
+                ", name='" + name + '\'' +
+                ", chapters=" + chapters +
+                ", problems=" + problems +
+                ", structure=" + structure +
+                '}';
     }
 }

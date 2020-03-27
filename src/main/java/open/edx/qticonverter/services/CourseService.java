@@ -5,21 +5,22 @@ import open.edx.qticonverter.models.Questions.CheckboxGroup;
 import open.edx.qticonverter.models.Questions.Choice;
 import open.edx.qticonverter.models.Questions.SingleChoice;
 import open.edx.qticonverter.models.interfaces.XmlAttributes;
-import open.edx.qticonverter.models.qti.manifest.Manifest;
 import open.edx.qticonverter.mongomodel.Definition;
 import open.edx.qticonverter.mongomodel.Version;
 import open.edx.qticonverter.repositories.DefinitionsRepo;
 import open.edx.qticonverter.repositories.StructuresRepo;
 import open.edx.qticonverter.repositories.VersionsRepo;
-import open.edx.qticonverter.services.dom.DomConverter;
+import open.edx.qticonverter.services.dom.DomService;
 import org.bson.types.ObjectId;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.*;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+import org.zeroturnaround.zip.ZipUtil;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -27,7 +28,6 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.*;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -37,29 +37,28 @@ import java.util.stream.Collectors;
 
 @Component
 public class CourseService {
-/*
- * Algemeen: heb de repos even hernoemd zodat duidelijk is of Versions een repo is of een model object.
- * Voor de duidelijkheid zou ik het opbouwen van het course model losgemaakt hebben van het wegschrijven naar xml files
- * en zip. Doordat het nu samen is kloppen de controllers op zich niet meer. Als je een lijstje courses wil hebben lukt
- * dat niet zonder alles weg te schrijven.
- *
- * Qti versie 2.1 wordt nu gebruikt. Uiteindelijk moet dat 2.2 of zelfs 3.0 worden, maar dat zijn meer details dan iets
- * anders. Als je echter de xml output op basis van een volledig opgebouwd course object maakt kan je ook meerdere
- * versies output naast elkaar maken.
- */
+    /*
+     * Algemeen: heb de repos even hernoemd zodat duidelijk is of Versions een repo is of een model object.
+     * Voor de duidelijkheid zou ik het opbouwen van het course model losgemaakt hebben van het wegschrijven naar xml files
+     * en zip. Doordat het nu samen is kloppen de controllers op zich niet meer. Als je een lijstje courses wil hebben lukt
+     * dat niet zonder alles weg te schrijven.
+     *
+     * Qti versie 2.1 wordt nu gebruikt. Uiteindelijk moet dat 2.2 of zelfs 3.0 worden, maar dat zijn meer details dan iets
+     * anders. Als je echter de xml output op basis van een volledig opgebouwd course object maakt kan je ook meerdere
+     * versies output naast elkaar maken.
+     */
 
 
     private final VersionsRepo versionsRepo;
     private final StructuresRepo structuresRepo;
     private final DefinitionsRepo definitionsRepo;
 
-    private final DomConverter domConverter;
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(CourseService.class);
 
-    public CourseService(VersionsRepo versionsRepo, StructuresRepo structuresRepo, DefinitionsRepo definitionsRepo, DomConverter domConverter) {
+    public CourseService(VersionsRepo versionsRepo, StructuresRepo structuresRepo, DefinitionsRepo definitionsRepo) {
         this.versionsRepo = versionsRepo;
         this.structuresRepo = structuresRepo;
         this.definitionsRepo = definitionsRepo;
-        this.domConverter = domConverter;
     }
 
     public List<Course> getCourses() throws Exception {
@@ -81,7 +80,6 @@ public class CourseService {
 
                 addChapters(course);
                 courses.add(course);
-                this.domConverter.createQtiPackage(course);
 
                 String fileName = course.getName().trim().concat(course.getId().trim());
 //                ZipUtil.pack(new File("src/main/java/open/edx/qticonverter/"), new File("src/main/java/open/edx/qticonverter/zipfiles/" + fileName + ".zip"));
@@ -107,7 +105,6 @@ public class CourseService {
 //                ZipUtil.pack(new File("src/main/java/open/edx/qticonverter/files/"), new File("src/main/java/open/edx/qticonverter/zipfiles/" + course.getName() + course.getId() + ".zip"));
             }
         }
-        this.domConverter.createQtiPackage(course);
         return course;
     }
 
@@ -222,61 +219,27 @@ public class CourseService {
         // Get
         Problem problem = new Problem();
         problem.setId(problemId);
-        // Set the definition MAP
-
-//        problem.setDefinition((Map) problems.get("definition"));
 
         Map problemField = (Map) problems.get("fields");
-
-
+        problem.setProblemType(problemField); //TODO:: Find a way to add the ProblemType (get it from XML)
         problem.setName(problemField.get("display_name") != null ? problemField.get("display_name").toString() : "");
+        problem.setMax_attempts(Integer.parseInt(problemField.get("max_attempts") != null ? problemField.get("max_attempts").toString() : "1"));
+        problem.setWeight(Float.parseFloat(problemField.get("weight") != null ? problemField.get("weight").toString() : "1.0"));
+        problem.setFileIdentifier(problem.getName() + "-" + problem.getId());
+        logger.info("The created problem and its properties: {}", problem);
 
-        addXmlAttributes(problem, problemField);
 
-//        System.out.println("---------------------------------------------");
-//        System.out.println(problems.get("definition"));
-//        System.out.println(problems.get("definition").getClass());
-//        System.out.println("---------------------------------------------");
-
-//        System.out.println("Definition attributes");
         Optional<Definition> definitionOptional = this.definitionsRepo.findById((ObjectId) problems.get("definition"));
-
-//        System.out.println("Block Type: " + definitionOptional.get().getBlockType() + "\n");
-//        System.out.println("Fields: " + definitionOptional.get().getFields() + "\n");
-//        System.out.println("Data: " + definitionOptional.get().getData() + "\n");
 
 
         int PRETTY_PRINT_INDENT_FACTOR = 5;
         String TEST_XML_STRING = definitionOptional.get().getData();
 
-//        try {
-//            if (TEST_XML_STRING.contains("checkboxgroup")) {
-//                XmlMapper xmlMapper = new XmlMapper();
-//                xmlMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-//                xmlMapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
-//
-//                // read file and put contents into the string
-////            String readContent = new String(Files.readAllBytes(Paths.get("../olx-files/to_deserialize.xml")));
-//
-//                // deserialize from the XML into a Phone object
-//                open.edx.qticonverter.models.Questions.Problem deserializedData = xmlMapper.readValue(TEST_XML_STRING, open.edx.qticonverter.models.Questions.Problem.class);
-//
-//                // Print object details
-//                System.out.println("Deserialized data: ");
-//                System.out.println("XML String: " + TEST_XML_STRING);
-//                System.out.println("\tP: " + deserializedData.getP());
-//                System.out.println("\tSolution: " + deserializedData.getSolution());
-//            }
-//        } catch (IOException e) {
-//            throw new IOException();
-//            // handle the exception
-//        }
-
         try {
 //            System.out.println("Sample.xml contents = " + TEST_XML_STRING);
 
             Document doc = stringToXmlDocument(TEST_XML_STRING);
-            System.out.println("XML STRING: " + TEST_XML_STRING);
+            logger.info("XML STRING: {}", TEST_XML_STRING);
 
 
             // DOM PARSER -> DOM TRANSFORM -> XML FILE CREATED
@@ -295,87 +258,23 @@ public class CourseService {
 
                 // if there is a choice box question in the problem context
                 //TODO:: CREATE A FUNCTION FOR EACH PROBLEM TYPE AND USE A SWITCH STATEMENT
-                if (problemChild.getNodeName().equals("choiceresponse")) {
-                    // GOAL match:
-                    // label = prompt
-                    // choice = simpleChoice
-                    buildMultipleChoiceItem(doc, problemField, problemChild, assessmentItemNode);
 
-                } else if (problemChild.getNodeName().equals("multiplechoiceresponse")) {
-                    buildChoiceBoxItem(doc, problemField, problemChild, assessmentItemNode);
-                }
             }
 
 
             doc.removeChild(problemNode);
 
-            // every element that comes is the root element and children of root element come here, because we can only
-            // create a new root element if there is not one. That is why we delete the problem element and create a
-            // assessmentItem element and its children.
-
-            Node assessmentItemNod = doc.appendChild(assessmentItemNode);
-            Element assessmentItem = doc.getDocumentElement();
-            assessmentItem.setAttribute("xmlns", "http://www.imsglobal.org/xsd/imsqti_v2p1");
-            assessmentItem.setAttribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
-            assessmentItem.setAttribute("xsi:schemaLocation", "http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1p1.xsd");
-            assessmentItem.setAttribute("identifier", problem.getId());
-            assessmentItem.setAttribute("title", problem.getName());
-            assessmentItem.setAttribute("adaptive", "false");
-            assessmentItem.setAttribute("timeDependent", "false");
-
-
-            // write the content into item xml file
-            TransformerFactory transformerFactory = TransformerFactory.newInstance();
-            Transformer transformer = transformerFactory.newTransformer();
-            DOMSource source = new DOMSource(doc);
-            String problemFilePath = "src/main/java/open/edx/qticonverter/files/" + course.getId() + "/" + problem.getName() + "-" + problem.getId() + ".xml";
-            StreamResult result = new StreamResult(problemFilePath);
-            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            transformer.transform(source, result);
-
-
             // DOM PARSER -> JAVA OBJECT CREATED -> XML DOCUMENT CREATED -> XML FILE CREATED
-//            if (doc.hasChildNodes()) {
-//
-//                visitChildNodes(doc.getChildNodes());
-//
-//            }
-
 
             // WITH JACKSON LIBRARY
-//            if (TEST_XML_STRING.contains("checkboxgroup")) {
-//                ObjectMapper objectMapper = new XmlMapper();
-//                objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-//                objectMapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
-//                objectMapper.registerModule(new JaxbAnnotationModule());
-//                System.out.println("IK BEGIN MET READVALUE()");
-//                open.edx.qticonverter.models.Questions.Problem singleChoiceProblem = objectMapper.readValue(doc, open.edx.qticonverter.models.Questions.Problem.class);
-//                System.out.println("IK EINDIG NU!");
-//                Logger.getAnonymousLogger().info(singleChoiceProblem.toString());
-//                System.out.println(((Map) singleChoiceProblem.getChoiceresponse().getChoice().get(0)).get("choice"));
-//                System.out.println(((Map) singleChoiceProblem.getChoiceresponse().getChoice().get(0)).get(""));
-//            }
 
-
-        } catch (IOException | SAXException | ParserConfigurationException | TransformerConfigurationException ex) {
+        } catch (IOException | SAXException | ParserConfigurationException ex) {
             throw new IOException();
-        } catch (TransformerException e) {
-            e.printStackTrace();
         }
-
-        try {
-            JSONObject xmlJSONObj = XML.toJSONObject(TEST_XML_STRING);
-//            System.out.println("---------------------------");
-//            System.out.println(xmlJSONObj.toString(PRETTY_PRINT_INDENT_FACTOR));
-//            System.out.println("---------------------------");
-//            String jsonPrettyPrintString = xmlJSONObj.toString(PRETTY_PRINT_INDENT_FACTOR);
-//            System.out.println(jsonPrettyPrintString);
-        } catch (JSONException je) {
-            System.out.println(je.toString());
-        }
-
 
         vertical.addChildBlock(problem);
+        course.addChildBlock(problem);
+        logger.info("Course object: {}", course);
     }
 
 
@@ -467,136 +366,11 @@ public class CourseService {
                     break;
                 default:
                     if (choiceResponseChild.getNodeName().equals("p") || choiceResponseChild.getNodeName().equals("h3")) {
-                        System.out.println(choiceResponseChild.getNodeName());
                         prompt.appendChild(choiceResponseChild);
                     }
             }
         }
         choiceInteraction.appendChild(prompt);
-        assessmentItemNode.appendChild(responseDeclaration);
-        assessmentItemNode.appendChild(itemBody);
-        //add the response processing of the choicebox question item
-        assessmentItemNode.appendChild(responseProcessing);
-    }
-
-    private void buildMultipleChoiceItem(Document doc, Map problemField, Node problemChild, Node assessmentItemNode) {
-        // create responseDeclaration element with its child correctResponse
-        Element responseDeclaration = doc.createElement("responseDeclaration");
-        String responseIdentifier = "RESPONSE";
-        responseDeclaration.setAttribute("identifier", responseIdentifier);
-        responseDeclaration.setAttribute("baseType", "identifier");
-
-        // Create outcomeDeclaration SCORE
-        Element outcomeScoreDeclaration = doc.createElement("choiceDeclaration");
-        outcomeScoreDeclaration.setAttribute("identifier", "SCORE");
-        outcomeScoreDeclaration.setAttribute("cardinality", "single");
-        outcomeScoreDeclaration.setAttribute("baseType", "float");
-
-        Element scoreDefaultValue = doc.createElement("defaultValue");
-        Element defaultValue = doc.createElement("value");
-        defaultValue.setAttribute("baseType", "float");
-        scoreDefaultValue.appendChild(defaultValue);
-        scoreDefaultValue.setTextContent("0"); // initial score per item is 0
-        outcomeScoreDeclaration.appendChild(scoreDefaultValue);
-        assessmentItemNode.appendChild(outcomeScoreDeclaration); //append to assessmentItem
-
-        // Create outcomeDeclaration MAX_SCORE
-        Element outcomeMaxDeclaration = doc.createElement("choiceDeclaration");
-        outcomeMaxDeclaration.setAttribute("identifier", "MAX_SCORE");
-        outcomeMaxDeclaration.setAttribute("cardinality", "single");
-        outcomeMaxDeclaration.setAttribute("baseType", "float");
-
-        Element maxDefaultValue = doc.createElement("defaultValue");
-        Element defaultValue2 = doc.createElement("value");
-        defaultValue2.setAttribute("baseType", "float");
-        maxDefaultValue.appendChild(defaultValue2);
-        maxDefaultValue.setTextContent(problemField.get("weight") != null ? problemField.get("weight").toString() : "1");
-        outcomeMaxDeclaration.appendChild(maxDefaultValue);
-        assessmentItemNode.appendChild(outcomeMaxDeclaration); //append to assessmentItem
-
-        // setup itemBody element
-        Element itemBody = doc.createElement("itemBody");
-        Element responseProcessing = doc.createElement("responseProcessing");
-
-        Element correctResponse = doc.createElement("correctResponse");
-        responseDeclaration.appendChild(correctResponse);
-
-        // create choiceInteraction element
-        Element choiceInteraction = doc.createElement("choiceInteraction");
-        // also add the responseIdentifier to the choiceInteraction that matches the responseDeclaration
-        choiceInteraction.setAttribute("responseIdentifier", responseIdentifier);
-        choiceInteraction.setAttribute("shuffle", "true");
-        itemBody.appendChild(choiceInteraction);
-
-
-        // the children of choiceresponse
-        NodeList choiceResponseChildren = problemChild.getChildNodes();
-
-        Node prompt = doc.createElement("prompt");
-
-        for (int j = 0; j < choiceResponseChildren.getLength(); j++) {
-
-            // the children, such as: label, description ...
-            Node choiceResponseChild = choiceResponseChildren.item(j);
-
-
-            switch (choiceResponseChild.getNodeName()) {
-                case "label":
-                    System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase() +
-                            ", with text value \"" + choiceResponseChild.getTextContent() + "\"");
-                    System.out.println(prompt.getTextContent());
-                    Element paragraphElement = doc.createElement("p");
-                    paragraphElement.setTextContent(choiceResponseChild.getTextContent());
-                    prompt.appendChild(paragraphElement);
-                    break;
-                case "description":
-                    System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase() +
-                            ", with text value \"" + choiceResponseChild.getTextContent() + "\"");
-                    prompt.setTextContent(prompt.getTextContent() + choiceResponseChild.getTextContent());
-                    break;
-                case "checkboxgroup":
-                    System.out.println("I've got the " + choiceResponseChild.getNodeName().toUpperCase());
-
-                    // loop through each choice of the Node "checkboxgroup"
-                    NodeList checkboxresponseChildren = choiceResponseChild.getChildNodes();
-                    char character = 'A';
-                    for (int k = 0; k < checkboxresponseChildren.getLength(); k++) {
-                        Node choiceNode = checkboxresponseChildren.item(k);
-                        if (choiceNode.getNodeName().equals("choice")) {
-                            String correctness = choiceNode.getAttributes().item(0).getTextContent();
-                            System.out.println("Correctness: " + correctness);
-                            if (correctness.equals("true")) {
-                                Element value = doc.createElement("value");
-                                value.setTextContent(String.valueOf(character));
-                                correctResponse.appendChild(value);
-                            }
-                            Element simpleChoice = doc.createElement("simpleChoice");
-                            simpleChoice.setAttribute("identifier", String.valueOf(character++));
-                            simpleChoice.setTextContent(choiceNode.getTextContent());
-                            choiceInteraction.appendChild(simpleChoice);
-                        }
-                    }
-
-                    // if more answers are right, set the "cardinality" attribute of responseDec to multiple
-                    // else to single
-//                                if (correctResponse.getChildNodes().getLength() > 1) {
-                    responseDeclaration.setAttribute("cardinality", "multiple");
-//                                } else {
-//                                    responseDeclaration.setAttribute("cardinality", "single");
-//                                }
-                    // if length of correct answers is more than 1 we get a multiple choice so we need to
-                    // set the maxChoices to the amount of correct answers that can be selected in an interaction
-                    choiceInteraction.setAttribute("maxChoices", "0");
-                    break;
-                default:
-                    if (choiceResponseChild.getNodeName().equals("p") || choiceResponseChild.getNodeName().equals("h3")) {
-                        System.out.println(choiceResponseChild.getNodeName());
-                        prompt.appendChild(choiceResponseChild);
-                    }
-            }
-        }
-        choiceInteraction.appendChild(prompt);
-
         assessmentItemNode.appendChild(responseDeclaration);
         assessmentItemNode.appendChild(itemBody);
         //add the response processing of the choicebox question item
@@ -657,16 +431,11 @@ public class CourseService {
                         if (checkBoxNode.hasChildNodes()) {
                             NodeList nList = checkBoxNode.getChildNodes();
                             for (int j = 0; j < nList.getLength(); j++) {
-                                System.out.println(checkBoxNode.getNodeName());
-                                System.out.println(nList.item(j));
                                 if (nList.item(j).getNodeName().equals("choice")) {
                                     Choice choice = new Choice();
                                     choice.setCorrect(nList.item(j).getAttributes().item(0).getTextContent());
                                     choice.setText(nList.item(j).getTextContent());
                                     choiceList.add(choice);
-                                    System.out.println("-------------------");
-                                    System.out.println(choice.getCorrect() + "\t" + choice.getText());
-                                    System.out.println("-------------------");
                                 }
                             }
                         }
@@ -675,8 +444,6 @@ public class CourseService {
                 }
             }
         }
-        System.out.println("Label: " + singleChoice.getLabel());
-        System.out.println("Description: " + singleChoice.getDescription());
     }
 
     private static Document stringToXmlDocument(String str) throws ParserConfigurationException, SAXException, IOException {
@@ -708,19 +475,6 @@ public class CourseService {
             if (xmlAttributes != null) {
                 List xmlFiles = (List) xmlAttributes.get("filename");
                 ((XmlAttributes) objectType).setXml_attributes(xmlFiles);
-            }
-        }
-    }
-
-    public static void deleteFolder(File folder) {
-        File[] files = folder.listFiles();
-        if (files != null) { //some JVMs return null for empty dirs
-            for (File f : files) {
-                if (f.isDirectory()) {
-                    deleteFolder(f);
-                } else {
-                    f.delete();
-                }
             }
         }
     }

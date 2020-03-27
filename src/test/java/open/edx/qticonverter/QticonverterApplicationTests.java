@@ -7,7 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 class QticonverterApplicationTests {
 
 	//Where are the tests???
-
+	//A: On the way
 	@Test
 	void contextLoads() {
 	}
