@@ -199,7 +199,7 @@ public class DomService {
             assessmentItemNode.appendChild(responseProcessing);
 
             try {
-                build(qtiDocument, course, problem.getFileIdentifier());
+                build(qtiDocument, course, problem.getFileIdentifier() + XML_EXTENSION);
             } catch (TransformerException e) {
                 e.printStackTrace();
             }
@@ -240,7 +240,7 @@ public class DomService {
             switch (choiceResponseChild.getNodeName()) {
                 case "label":
                     Element paragraphElement = qtiDocument.createElement("p");
-                    paragraphElement.setTextContent(prompt.getTextContent() + choiceResponseChild.getTextContent());
+                    paragraphElement.setTextContent(choiceResponseChild.getTextContent());
                     prompt.appendChild(paragraphElement);
                     break;
                 case "description":
@@ -329,12 +329,13 @@ public class DomService {
                 case "description":
                     prompt.setTextContent(prompt.getTextContent() + choiceResponseChild.getTextContent());
                     break;
-                case "checkboxgroup":
+                case "choicegroup":
                     // loop through each choice of the Node "checkboxgroup"
-                    NodeList checkboxresponseChildren = choiceResponseChild.getChildNodes();
+                    NodeList choiceGroupChildren = choiceResponseChild.getChildNodes();
+                    logger.info("choiceGroupChildren: {}", choiceGroupChildren);
                     char character = 'A';
-                    for (int k = 0; k < checkboxresponseChildren.getLength(); k++) {
-                        Node choiceNode = checkboxresponseChildren.item(k);
+                    for (int k = 0; k < choiceGroupChildren.getLength(); k++) {
+                        Node choiceNode = choiceGroupChildren.item(k);
                         if (choiceNode.getNodeName().equals("choice")) {
                             String correctness = choiceNode.getAttributes().item(0).getTextContent();
                             if (correctness.equals("true")) {

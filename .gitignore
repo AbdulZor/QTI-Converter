@@ -3,6 +3,8 @@ target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**
 !**/src/test/**
+/src/main/java/open/edx/qticonverter/files
+/src/main/java/open/edx/qticonverter/zipfiles
 
 ### STS ###
 .apt_generated
