@@ -279,7 +279,7 @@ public class DomService {
                     break;
                 default:
                     if (choiceResponseChild.getNodeName().equals("p") || choiceResponseChild.getNodeName().equals("h3")) {
-                        Node importedChoiceRespondChild = qtiDocument.importNode(choiceInteraction, true);
+                        Node importedChoiceRespondChild = qtiDocument.importNode(choiceResponseChild, true);
                         prompt.appendChild(importedChoiceRespondChild);
                     }
             }
@@ -362,7 +362,7 @@ public class DomService {
                     break;
                 default:
                     if (choiceResponseChild.getNodeName().equals("p") || choiceResponseChild.getNodeName().equals("h3")) {
-                        Node importedChoiceRespondChild = qtiDocument.importNode(choiceInteraction, true);
+                        Node importedChoiceRespondChild = qtiDocument.importNode(choiceResponseChild, true);
                         prompt.appendChild(importedChoiceRespondChild);
                     }
             }
