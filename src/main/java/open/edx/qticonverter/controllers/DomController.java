@@ -19,9 +19,8 @@ public class DomController {
         this.domService.createQtiPackages();
     }
 
-    //TODO:: Create new method in service which enables creating QTI package for one course
     @RequestMapping("/{courseId}")
     public void createQtiPackageForId(@PathVariable(name = "courseId") String id) {
-        this.domService.createQtiPackages();
+        this.domService.createQtiPackageForId(id);
     }
 }

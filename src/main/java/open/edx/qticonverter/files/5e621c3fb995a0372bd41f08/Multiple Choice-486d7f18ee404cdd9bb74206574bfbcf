@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" adaptive="false" identifier="486d7f18ee404cdd9bb74206574bfbcf" timeDependent="false" title="Multiple Choice" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1p1.xsd">
+<choiceDeclaration baseType="float" cardinality="single" identifier="SCORE">
+<defaultValue>0</defaultValue>
+</choiceDeclaration>
+<choiceDeclaration baseType="float" cardinality="single" identifier="MAX_SCORE">
+<defaultValue>1.0</defaultValue>
+</choiceDeclaration>
+<itemBody/>
+<responseProcessing/>
+</assessmentItem>

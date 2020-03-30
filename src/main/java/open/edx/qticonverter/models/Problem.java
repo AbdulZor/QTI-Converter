@@ -1,6 +1,7 @@
 package open.edx.qticonverter.models;
 
 import open.edx.qticonverter.models.interfaces.BlockTypeable;
+import open.edx.qticonverter.mongomodel.Definition;
 import org.springframework.data.annotation.Id;
 
 import java.util.List;
@@ -15,6 +16,7 @@ public class Problem implements BlockTypeable {
     private List<String> dependencyList;
     private float weight;
     private int max_attempts;
+    private Definition definition;
 
     // add this feature later (QTI 2.2 feature)
     private String styleSheetFilePath;
@@ -83,6 +85,14 @@ public class Problem implements BlockTypeable {
         this.max_attempts = max_attempts;
     }
 
+    public Definition getDefinition() {
+        return definition;
+    }
+
+    public void setDefinition(Definition definition) {
+        this.definition = definition;
+    }
+
     @Override
     public void addChildBlock(BlockTypeable child) {
         // NIET IMPLEMENTEREN, omdat problem geen child meer is
@@ -100,6 +110,7 @@ public class Problem implements BlockTypeable {
                 ", dependencyList=" + dependencyList +
                 ", weight=" + weight +
                 ", max_attempts=" + max_attempts +
+                ", definition=" + definition +
                 ", styleSheetFilePath='" + styleSheetFilePath + '\'' +
                 '}';
     }
