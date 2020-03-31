@@ -1,36 +1,16 @@
 package open.edx.qticonverter.services;
 
 import open.edx.qticonverter.models.*;
-import open.edx.qticonverter.models.Questions.CheckboxGroup;
-import open.edx.qticonverter.models.Questions.Choice;
-import open.edx.qticonverter.models.Questions.SingleChoice;
 import open.edx.qticonverter.models.interfaces.XmlAttributes;
 import open.edx.qticonverter.mongomodel.Definition;
 import open.edx.qticonverter.mongomodel.Version;
 import open.edx.qticonverter.repositories.DefinitionsRepo;
 import open.edx.qticonverter.repositories.StructuresRepo;
 import open.edx.qticonverter.repositories.VersionsRepo;
-import open.edx.qticonverter.services.dom.DomService;
 import org.bson.types.ObjectId;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.XML;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.w3c.dom.*;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import org.zeroturnaround.zip.ZipUtil;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.*;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import java.io.IOException;
-import java.io.StringReader;
-import java.io.StringWriter;
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -61,7 +41,7 @@ public class CourseService {
         this.definitionsRepo = definitionsRepo;
     }
 
-    public List<Course> getCourses() throws Exception {
+    public List<Course> getCourses() {
         ArrayList<Course> courses = new ArrayList<>();
         //Get Active versions from repo
         List<Version> all = versionsRepo.findAll();
@@ -88,7 +68,7 @@ public class CourseService {
         return courses;
     }
 
-    public Course getCourseById(String courseId) throws Exception {
+    public Course getCourseById(String courseId){
         //Get Active versions from repo
         List<Version> all = versionsRepo.findAll();
         Course course = new Course();
@@ -114,7 +94,7 @@ public class CourseService {
     // If we look at the structures collection we may have 5 versions of the same course but we
     // want to get the latest version from the active_versions collections
 
-    private void addChapters(Course course) throws Exception {
+    private void addChapters(Course course){
         // Find the course in blocks and add the children as Chapter
         // Whereby the chapters can be found in the fields property->children->[chapter, "ObjectId"]
         // getBlocks are the
@@ -159,7 +139,7 @@ public class CourseService {
         Logger.getAnonymousLogger().info(courses.toString());
     }
 
-    private void addSequentials(Course course, Chapter chapter, String sequentialId) throws Exception {
+    private void addSequentials(Course course, Chapter chapter, String sequentialId) {
         Map sequentials = course.getStructure().getBlocks().stream().filter(blockmap -> blockmap.containsKey("block_id") &&
                 blockmap.get("block_id").toString().equals(sequentialId)).findFirst().get();
 
@@ -183,7 +163,7 @@ public class CourseService {
         chapter.addChildBlock(sequential);
     }
 
-    private void addVerticals(Course course, Sequential sequential, String verticalId) throws Exception {
+    private void addVerticals(Course course, Sequential sequential, String verticalId){
         Map verticals = course.getStructure().getBlocks().stream().filter(blockmap -> blockmap.containsKey("block_id") &&
                 blockmap.get("block_id").toString().equals(verticalId)).findFirst().get();
 
@@ -209,7 +189,7 @@ public class CourseService {
         sequential.addChildBlock(vertical);
     }
 
-    private void addProblems(Course course, Vertical vertical, String problemId) throws IOException {
+    private void addProblems(Course course, Vertical vertical, String problemId) {
         Map problems = course.getStructure().getBlocks().stream().filter(blockmap -> blockmap.containsKey("block_id") &&
                 blockmap.get("block_id").toString().equals(problemId)).findFirst().get();
 

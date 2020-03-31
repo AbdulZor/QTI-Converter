@@ -6,6 +6,13 @@ target/
 /src/main/java/open/edx/qticonverter/files
 /src/main/java/open/edx/qticonverter/zipfiles
 
+java.util.*
+java.util.logging.Logger
+java.util.stream.Collectors
+open.edx.qticonverter.models.*
+open.edx.qticonverter.models.interfaces.BlockTypeable
+open.edx.qticonverter.models.interfaces.XmlAttributes
+
 ### STS ###
 .apt_generated
 .classpath

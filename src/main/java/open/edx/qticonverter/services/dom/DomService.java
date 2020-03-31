@@ -171,8 +171,14 @@ public class DomService {
 
             // setup itemBody element
             Element itemBody = qtiDocument.createElement("itemBody");
-            Element responseProcessing = qtiDocument.createElement("responseProcessing");
 
+            //add the response processing of the choicebox question item
+            StringBuilder responseProcessingString = new StringBuilder();
+            responseProcessingString.append(
+                    "<responseCondition>\n" +
+                            "             <responseIf>\n" +
+                            "                <and>\n"
+            );
 
             String problemXMLString = problem.getDefinition().getData();
             logger.info("XML STRING: {}", problemXMLString);
@@ -180,23 +186,41 @@ public class DomService {
             Document olxDocument = stringToXmlDocument(problemXMLString);
 
             NodeList childNodesProblem = olxDocument.getDocumentElement().getChildNodes();
+            int responseId = 1;
             for (int i = 0; i < childNodesProblem.getLength(); i++) {
                 Node problemChild = childNodesProblem.item(i);
-                logger.info("DocumentElement(<PROBLEM>) childnode: {}", problemChild.getNodeName());
+                logger.info("problemChild: " + problemChild.getNodeName());
 
                 boolean choiceresponse = problemChild.getNodeName().equalsIgnoreCase("choiceresponse");
                 boolean multipleChoiceResponse = problemXMLString.equalsIgnoreCase("multiplechoiceresponse");
                 if (choiceresponse) {
-                    buildMultipleChoiceItem(qtiDocument, itemBody, problemChild, assessmentItemNode);
+                    buildMultipleChoiceItem(qtiDocument, itemBody, problemChild, assessmentItemNode, responseProcessingString, responseId++);
                 } else if (multipleChoiceResponse) {
                     buildChoiceBoxItem(qtiDocument, itemBody, problemChild, assessmentItemNode);
                 }
             }
 
+            // finish the responseProcessingElement
+            responseProcessingString.append(
+                    "                </and>\n" +
+                            "                <setOutcomeValue identifier=\"SCORE\">\n" +
+                            "                    <baseValue baseType=\"float\">" + problem.getWeight() + "</baseValue>\n" +
+                            "                </setOutcomeValue>\n" +
+                            "            </responseIf>\n" +
+                            "            <responseElse>\n" +
+                            "                <setOutcomeValue identifier=\"SCORE\">\n" +
+                            "                    <baseValue baseType=\"float\">0.0</baseValue>\n" +
+                            "                </setOutcomeValue>\n" +
+                            "            </responseElse>\n" +
+                            "</responseCondition>"
+            );
+
+            logger.info("responseProcessingElement String:\n {}", responseProcessingString);
+            Document responseProcessingElement = stringToXmlDocument(responseProcessingString.toString());
+            Node importedResponseNode = qtiDocument.importNode(responseProcessingElement.getDocumentElement(), true);
 
             assessmentItemNode.appendChild(itemBody);
-            //add the response processing of the choicebox question item
-            assessmentItemNode.appendChild(responseProcessing);
+            assessmentItemNode.appendChild(importedResponseNode);
 
             try {
                 build(qtiDocument, course, problem.getFileIdentifier() + XML_EXTENSION);
@@ -207,13 +231,12 @@ public class DomService {
         }
     }
 
-    private Document buildMultipleChoiceItem(Document qtiDocument, Element itemBody, Node problemChild, Node assessmentItemNode) {
+    private void buildMultipleChoiceItem(Document qtiDocument, Element itemBody, Node problemChild, Node assessmentItemNode, StringBuilder responseProcessingString, int responseId) {
         // create responseDeclaration element with its child correctResponse
         Element responseDeclaration = qtiDocument.createElement("responseDeclaration");
-        String responseIdentifier = "RESPONSE";
+        String responseIdentifier = "RESPONSE_" + responseId;
         responseDeclaration.setAttribute("identifier", responseIdentifier);
         responseDeclaration.setAttribute("baseType", "identifier");
-
 
         Element correctResponse = qtiDocument.createElement("correctResponse");
         responseDeclaration.appendChild(correctResponse);
@@ -224,6 +247,13 @@ public class DomService {
         choiceInteraction.setAttribute("responseIdentifier", responseIdentifier);
         choiceInteraction.setAttribute("shuffle", "true");
         itemBody.appendChild(choiceInteraction);
+
+        responseProcessingString.append(
+                "                    <match>\n" +
+                        "                        <variable identifier=\"" + responseIdentifier + "\"/>\n" +
+                        "                        <correct identifier=\"" + responseIdentifier + "\"/>\n" +
+                        "                    </match>\n"
+        );
 
 
         // the children of choiceresponse
@@ -240,7 +270,7 @@ public class DomService {
             switch (choiceResponseChild.getNodeName()) {
                 case "label":
                     Element paragraphElement = qtiDocument.createElement("p");
-                    paragraphElement.setTextContent(choiceResponseChild.getTextContent());
+                    paragraphElement.setTextContent(prompt.getTextContent().concat(choiceResponseChild.getTextContent()));
                     prompt.appendChild(paragraphElement);
                     break;
                 case "description":
@@ -256,11 +286,11 @@ public class DomService {
                             String correctness = choiceNode.getAttributes().item(0).getTextContent();
                             if (correctness.equals("true")) {
                                 Element value = qtiDocument.createElement("value");
-                                value.setTextContent(String.valueOf(character));
+                                value.setTextContent(responseId + String.valueOf(character));
                                 correctResponse.appendChild(value);
                             }
                             Element simpleChoice = qtiDocument.createElement("simpleChoice");
-                            simpleChoice.setAttribute("identifier", String.valueOf(character++));
+                            simpleChoice.setAttribute("identifier", responseId + String.valueOf((character++)));
                             simpleChoice.setTextContent(choiceNode.getTextContent());
                             choiceInteraction.appendChild(simpleChoice);
                         }
@@ -284,13 +314,13 @@ public class DomService {
                     }
             }
         }
+        logger.info("prompt value: " + prompt.getTextContent());
         choiceInteraction.appendChild(prompt);
         assessmentItemNode.appendChild(responseDeclaration);
 
-        return qtiDocument;
     }
 
-    private Document buildChoiceBoxItem(Document qtiDocument, Element itemBody, Node problemChild, Node assessmentItemNode) {
+    private void buildChoiceBoxItem(Document qtiDocument, Element itemBody, Node problemChild, Node assessmentItemNode) {
         // create responseDeclaration element with its child correctResponse
         Element responseDeclaration = qtiDocument.createElement("responseDeclaration");
         String responseIdentifier = "RESPONSE";
@@ -332,7 +362,6 @@ public class DomService {
                 case "choicegroup":
                     // loop through each choice of the Node "checkboxgroup"
                     NodeList choiceGroupChildren = choiceResponseChild.getChildNodes();
-                    logger.info("choiceGroupChildren: {}", choiceGroupChildren);
                     char character = 'A';
                     for (int k = 0; k < choiceGroupChildren.getLength(); k++) {
                         Node choiceNode = choiceGroupChildren.item(k);
@@ -371,7 +400,6 @@ public class DomService {
         choiceInteraction.appendChild(prompt);
         assessmentItemNode.appendChild(responseDeclaration);
 
-        return qtiDocument;
     }
 
     private static Document stringToXmlDocument(String str) {
