@@ -68,7 +68,7 @@ public class CourseService {
         return courses;
     }
 
-    public Course getCourseById(String courseId){
+    public Course getCourseById(String courseId) {
         //Get Active versions from repo
         List<Version> all = versionsRepo.findAll();
         Course course = new Course();
@@ -94,7 +94,7 @@ public class CourseService {
     // If we look at the structures collection we may have 5 versions of the same course but we
     // want to get the latest version from the active_versions collections
 
-    private void addChapters(Course course){
+    private void addChapters(Course course) {
         // Find the course in blocks and add the children as Chapter
         // Whereby the chapters can be found in the fields property->children->[chapter, "ObjectId"]
         // getBlocks are the
@@ -163,7 +163,7 @@ public class CourseService {
         chapter.addChildBlock(sequential);
     }
 
-    private void addVerticals(Course course, Sequential sequential, String verticalId){
+    private void addVerticals(Course course, Sequential sequential, String verticalId) {
         Map verticals = course.getStructure().getBlocks().stream().filter(blockmap -> blockmap.containsKey("block_id") &&
                 blockmap.get("block_id").toString().equals(verticalId)).findFirst().get();
 

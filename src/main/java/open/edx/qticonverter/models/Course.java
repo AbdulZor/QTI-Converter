@@ -102,6 +102,8 @@ public class Course implements BlockTypeable {
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
                 ", chapters=" + chapters +
+                ", sequentials=" + sequentials +
+                ", verticals=" + verticals +
                 ", problems=" + problems +
                 ", structure=" + structure +
                 '}';

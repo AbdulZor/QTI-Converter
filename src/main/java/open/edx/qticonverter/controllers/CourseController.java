@@ -12,7 +12,7 @@ import java.util.List;
 
 @RequestMapping("courses")
 @RestController()
-public class CourseController{
+public class CourseController {
 
     private final CourseService courseService;
 
@@ -21,12 +21,12 @@ public class CourseController{
     }
 
     @GetMapping()
-    public List<Course> courses() throws Exception {
+    public List<Course> courses() {
         return courseService.getCourses();
     }
 
     @GetMapping("/{id}")
-    public Course getCourseById(@PathVariable ObjectId id) throws Exception {
+    public Course getCourseById(@PathVariable ObjectId id) {
         return courseService.getCourseById(id.toHexString());
     }
 }
