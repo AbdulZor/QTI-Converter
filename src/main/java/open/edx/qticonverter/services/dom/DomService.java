@@ -345,7 +345,8 @@ public class DomService {
             }
         }
         itemBody.appendChild(choiceInteraction);
-        assessmentItemNode.appendChild(responseDeclaration);
+
+        assessmentItemNode.(responseDeclaration);
 
     }
 
