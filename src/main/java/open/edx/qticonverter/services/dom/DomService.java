@@ -129,19 +129,6 @@ public class DomService {
             } catch (ParserConfigurationException e) {
                 e.printStackTrace();
             }
-            /*
-                assessmentItem
-                    responseDeclaration
-                    outcomeDeclaration
-                    outcomeDeclaration
-
-                    itemBody
-                        prompt
-                        simpleChoice
-
-                    responseProcessing
-
-             */
 
             Document qtiDocument = documentBuilder.newDocument();
             Node assessmentItemNode = qtiDocument.createElement("assessmentItem");
@@ -161,12 +148,6 @@ public class DomService {
 
             //add the response processing of the choicebox question item
             StringBuilder responseProcessingString = new StringBuilder();
-            responseProcessingString.append(
-                    "<responseProcessing>" +
-                            "<responseCondition>\n" +
-                            "             <responseIf>\n" +
-                            "                <and>\n"
-            );
 
             String problemXMLString = problem.getDefinition().getData();
 //            logger.info("XML STRING: {}", problemXMLString);
@@ -189,11 +170,11 @@ public class DomService {
                         itemBody.appendChild(paragraphElement2);
                         break;
                     case "multiplechoiceresponse":
-                        buildChoiceBoxItem(qtiDocument, problemChild, itemBody, promptStringBuilder, assessmentItemNode, responseProcessingString, responseId++);
+                        buildChoiceBoxItem(qtiDocument, problemChild, itemBody, promptStringBuilder, assessmentItemNode, responseId++);
                         promptStringBuilder.setLength(0);
                         break;
                     case "choiceresponse":
-                        buildMultipleChoiceItem(qtiDocument, problemChild, itemBody, promptStringBuilder, assessmentItemNode, responseProcessingString, responseId++);
+                        buildMultipleChoiceItem(qtiDocument, problemChild, itemBody, promptStringBuilder, assessmentItemNode, responseId++);
                         promptStringBuilder.setLength(0);
                         break;
                     default:
@@ -203,25 +184,11 @@ public class DomService {
                         }
                 }
             }
+            createMatchedResponseProcessing(responseProcessingString, responseId, problem.getWeight());
 
             // Add the <outcomeDeclaration> Nodes to the DOM tree
             createOutcomeDeclarations(problem, qtiDocument, assessmentItemNode);
 
-            // finish the responseProcessingElement
-            responseProcessingString.append(
-                    "                </and>\n" +
-                            "                <setOutcomeValue identifier=\"SCORE\">\n" +
-                            "                    <baseValue baseType=\"float\">" + problem.getWeight() + "</baseValue>\n" +
-                            "                </setOutcomeValue>\n" +
-                            "            </responseIf>\n" +
-                            "            <responseElse>\n" +
-                            "                <setOutcomeValue identifier=\"SCORE\">\n" +
-                            "                    <baseValue baseType=\"float\">0.0</baseValue>\n" +
-                            "                </setOutcomeValue>\n" +
-                            "            </responseElse>\n" +
-                            "</responseCondition>\n" +
-                            "</responseProcessing>"
-            );
 
             Document responseProcessingElement = stringToXmlDocument(responseProcessingString.toString());
             Node importedResponseNode = qtiDocument.importNode(responseProcessingElement.getDocumentElement(), true);
@@ -266,8 +233,43 @@ public class DomService {
         assessmentItemNode.appendChild(outcomeMaxDeclaration); //append to assessmentItem
     }
 
+    private void createMatchedResponseProcessing(StringBuilder responseProcessingString, int responseId, float problemWeight) {
+        // overriding the match_template of QTI v2.1
+        responseProcessingString.append(
+                "<responseProcessing>" +
+                        "<responseCondition>\n" +
+                        "             <responseIf>\n" +
+                        "                <and>\n"
+        );
+
+        for (int i = 1; i < responseId; i++) {
+            responseProcessingString.append(
+                    "                    <match>\n" +
+                            "                        <variable identifier=\"RESPONSE_" + i + "\"/>\n" +
+                            "                        <correct identifier=\"RESPONSE_" + i + "\"/>\n" +
+                            "                    </match>\n"
+            );
+        }
+
+        // finish the responseProcessingElement
+        responseProcessingString.append(
+                "                </and>\n" +
+                        "                <setOutcomeValue identifier=\"SCORE\">\n" +
+                        "                    <baseValue baseType=\"float\">" + problemWeight + "</baseValue>\n" +
+                        "                </setOutcomeValue>\n" +
+                        "            </responseIf>\n" +
+                        "            <responseElse>\n" +
+                        "                <setOutcomeValue identifier=\"SCORE\">\n" +
+                        "                    <baseValue baseType=\"float\">0.0</baseValue>\n" +
+                        "                </setOutcomeValue>\n" +
+                        "            </responseElse>\n" +
+                        "</responseCondition>\n" +
+                        "</responseProcessing>"
+        );
+    }
+
     private void buildMultipleChoiceItem(Document qtiDocument, Node problemChild, Element itemBody, StringBuilder promptStringBuilder,
-                                         Node assessmentItemNode, StringBuilder responseProcessingString, int responseId) {
+                                         Node assessmentItemNode, int responseId) {
         // create responseDeclaration element with its child correctResponse
         Element responseDeclaration = qtiDocument.createElement("responseDeclaration");
         String responseIdentifier = "RESPONSE_" + responseId;
@@ -292,14 +294,6 @@ public class DomService {
 
 
         choiceInteraction.appendChild(prompt);
-
-        responseProcessingString.append(
-                "                    <match>\n" +
-                        "                        <variable identifier=\"" + responseIdentifier + "\"/>\n" +
-                        "                        <correct identifier=\"" + responseIdentifier + "\"/>\n" +
-                        "                    </match>\n"
-        );
-
 
         // the children of choiceresponse
         NodeList choiceResponseChildren = problemChild.getChildNodes();
@@ -356,7 +350,7 @@ public class DomService {
     }
 
     private void buildChoiceBoxItem(Document qtiDocument, Node problemChild, Element itemBody, StringBuilder promptStringBuilder,
-                                    Node assessmentItemNode, StringBuilder responseProcessingString, int responseId) {
+                                    Node assessmentItemNode, int responseId) {
         // create responseDeclaration element with its child correctResponse
         Element responseDeclaration = qtiDocument.createElement("responseDeclaration");
         String responseIdentifier = "RESPONSE_" + responseId;
@@ -381,14 +375,6 @@ public class DomService {
 
 
         choiceInteraction.appendChild(prompt);
-
-        responseProcessingString.append(
-                "                    <match>\n" +
-                        "                        <variable identifier=\"" + responseIdentifier + "\"/>\n" +
-                        "                        <correct identifier=\"" + responseIdentifier + "\"/>\n" +
-                        "                    </match>\n"
-        );
-
 
         // the children of choiceresponse
         NodeList choiceResponseChildren = problemChild.getChildNodes();
