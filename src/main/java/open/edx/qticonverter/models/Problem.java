@@ -11,7 +11,6 @@ public class Problem implements BlockTypeable {
     private String id;
     private ProblemType problemType;
     private String name;
-    private List<String> xml_attributes;
     private String fileIdentifier;
     private List<String> dependencyList;
     private float weight;
@@ -43,14 +42,6 @@ public class Problem implements BlockTypeable {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public List<String> getXml_attributes() {
-        return xml_attributes;
-    }
-
-    public void setXml_attributes(List<String> xml_attributes) {
-        this.xml_attributes = xml_attributes;
     }
 
     public String getFileIdentifier() {
@@ -105,7 +96,6 @@ public class Problem implements BlockTypeable {
                 "id='" + id + '\'' +
                 ", problemType=" + problemType +
                 ", name='" + name + '\'' +
-                ", xml_attributes=" + xml_attributes +
                 ", fileIdentifier='" + fileIdentifier + '\'' +
                 ", dependencyList=" + dependencyList +
                 ", weight=" + weight +

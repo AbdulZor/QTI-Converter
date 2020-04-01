@@ -1,17 +1,15 @@
 package open.edx.qticonverter.models;
 
 import open.edx.qticonverter.models.interfaces.BlockTypeable;
-import open.edx.qticonverter.models.interfaces.XmlAttributes;
 import org.springframework.data.annotation.Id;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class Chapter implements BlockTypeable, XmlAttributes {
+public class Chapter implements BlockTypeable {
     @Id
     public String id;
     public String name;
-    private List<String> xml_attributes;
     public List<Sequential> sequentials;
 
     public Chapter() {
@@ -49,11 +47,12 @@ public class Chapter implements BlockTypeable, XmlAttributes {
         }
     }
 
-    public List<String> getXml_attributes() {
-        return xml_attributes;
-    }
-
-    public void setXml_attributes(List<String> xml_attributes) {
-        this.xml_attributes = xml_attributes;
+    @Override
+    public String toString() {
+        return "Chapter{" +
+                "id='" + id + '\'' +
+                ", name='" + name + '\'' +
+                ", sequentials=" + sequentials +
+                '}';
     }
 }

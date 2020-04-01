@@ -1,7 +1,6 @@
 package open.edx.qticonverter.services;
 
 import open.edx.qticonverter.models.*;
-import open.edx.qticonverter.models.interfaces.XmlAttributes;
 import open.edx.qticonverter.mongomodel.Definition;
 import open.edx.qticonverter.mongomodel.Version;
 import open.edx.qticonverter.repositories.DefinitionsRepo;
@@ -88,7 +87,6 @@ public class CourseService {
         return course;
     }
 
-    // TODO:: Refractor 'id' to 'courseId' after uncommenting code
     // We use the id because they version the structures in the structures collection
     // We can use the courses published id to get the structure with the latest version.
     // If we look at the structures collection we may have 5 versions of the same course but we
@@ -96,7 +94,7 @@ public class CourseService {
 
     private void addChapters(Course course) {
         // Find the course in blocks and add the children as Chapter
-        // Whereby the chapters can be found in the fields property->children->[chapter, "ObjectId"]
+        // Where the chapters can be found in the fields property->children->[chapter, "ObjectId"]
         // getBlocks are the
         List<Map> courses = course.getStructure().getBlocks().stream().filter(blockmap -> blockmap.containsKey("block_type") &&
                 blockmap.get("block_type").equals("course")).collect(Collectors.toList());
@@ -119,9 +117,6 @@ public class CourseService {
                         Map chapterFieldValue = (Map) chapterMap.get("fields");
                         String chapterNameValue = chapterFieldValue.get("display_name").toString();
                         chapter.setName(chapterNameValue);
-
-                        // Add the XML attributes if available
-                        addXmlAttributes(chapter, chapterFieldValue);
 
                         List<List> chapterChildrenValue = (List) chapterFieldValue.get("children");
 
@@ -150,8 +145,6 @@ public class CourseService {
         Map sequentialField = (Map) sequentials.get("fields");
         sequential.setName(sequentialField.get("display_name").toString());
 
-        addXmlAttributes(sequential, sequentialField);
-
         List<List> sequentialChildrenValue = (List) sequentialField.get("children");
 
         // after each property of Sequential obj (name, xml_attr ..) is set we add the vertical property
@@ -173,8 +166,6 @@ public class CourseService {
 
         Map verticalField = (Map) verticals.get("fields");
         vertical.setName(verticalField.get("display_name").toString());
-
-        addXmlAttributes(vertical, verticalField);
 
         List<List> verticalChildrenValue = (List) verticalField.get("children");
 
@@ -211,17 +202,5 @@ public class CourseService {
 
         vertical.addChildBlock(problem);
         course.addChildBlock(problem);
-        logger.info("Course object: {}", course);
-    }
-
-    //TODO:: MAAK ALLE CLASSES DIE GEBRUIK KUNNEN MAKEN VAN XML ATTRIBUTES, IMPLEMENTS XmlAttributes
-    private void addXmlAttributes(Object objectType, Map fieldValue) {
-        if (fieldValue.get("xml_attributes") != null) {
-            Map xmlAttributes = (Map) fieldValue.get("xml_attributes");
-            if (xmlAttributes != null) {
-                List xmlFiles = (List) xmlAttributes.get("filename");
-                ((XmlAttributes) objectType).setXml_attributes(xmlFiles);
-            }
-        }
     }
 }

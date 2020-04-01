@@ -1,17 +1,15 @@
 package open.edx.qticonverter.models;
 
 import open.edx.qticonverter.models.interfaces.BlockTypeable;
-import open.edx.qticonverter.models.interfaces.XmlAttributes;
 import org.springframework.data.annotation.Id;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class Vertical implements BlockTypeable, XmlAttributes {
+public class Vertical implements BlockTypeable {
     @Id
     public String id;
     public String name;
-    private List<String> xml_attributes;
     public List<Problem> problems;
 
     public Vertical() {
@@ -34,15 +32,6 @@ public class Vertical implements BlockTypeable, XmlAttributes {
         this.name = name;
     }
 
-    public List<String> getXml_attributes() {
-        return xml_attributes;
-    }
-
-    @Override
-    public void setXml_attributes(List<String> xml_attributes) {
-        this.xml_attributes = xml_attributes;
-    }
-
     public List<Problem> getProblems() {
         return problems;
     }
@@ -54,5 +43,14 @@ public class Vertical implements BlockTypeable, XmlAttributes {
     @Override
     public void addChildBlock(BlockTypeable child) {
         problems.add((Problem) child);
+    }
+
+    @Override
+    public String toString() {
+        return "Vertical{" +
+                "id='" + id + '\'' +
+                ", name='" + name + '\'' +
+                ", problems=" + problems +
+                '}';
     }
 }

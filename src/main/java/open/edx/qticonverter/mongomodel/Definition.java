@@ -54,4 +54,14 @@ public class Definition {
             fields.put("data", data);
         }
     }
+
+    @Override
+    public String toString() {
+        return "Definition{" +
+                "id='" + id + '\'' +
+                ", blockType='" + blockType + '\'' +
+                ", fields=" + fields +
+                ", data='" + data + '\'' +
+                '}';
+    }
 }
