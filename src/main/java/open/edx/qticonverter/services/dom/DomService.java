@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class DomService {
@@ -136,7 +138,7 @@ public class DomService {
             Element assessmentItem = qtiDocument.getDocumentElement();
             assessmentItem.setAttribute("xmlns", "http://www.imsglobal.org/xsd/imsqti_v2p1");
             assessmentItem.setAttribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
-            assessmentItem.setAttribute("xsi:schemaLocation", "http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1p1.xsd");
+            assessmentItem.setAttribute("xsi:schemaLocation", "http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd");
             assessmentItem.setAttribute("identifier", problem.getId());
             assessmentItem.setAttribute("title", problem.getName());
             assessmentItem.setAttribute("adaptive", "false");
@@ -144,10 +146,6 @@ public class DomService {
 
             // Add the <itemBody> Node to the DOM documentElement
             Element itemBody = qtiDocument.createElement("itemBody");
-
-
-            //add the response processing of the choicebox question item
-            StringBuilder responseProcessingString = new StringBuilder();
 
             String problemXMLString = problem.getDefinition().getData();
 //            logger.info("XML STRING: {}", problemXMLString);
@@ -177,6 +175,10 @@ public class DomService {
                         buildMultipleChoiceItem(qtiDocument, problemChild, itemBody, promptStringBuilder, assessmentItemNode, responseId++);
                         promptStringBuilder.setLength(0);
                         break;
+                    case "optionresponse":
+                        buildInlineChoiceItem(qtiDocument, problemChild, itemBody, promptStringBuilder, assessmentItemNode, responseId++);
+                        promptStringBuilder.setLength(0);
+                        break;
                     default:
                         if (problemChild.getNodeName().equals("p") || problemChild.getNodeName().equals("h3")) {
                             Node importedChoiceRespondChild = qtiDocument.importNode(problemChild, true);
@@ -184,17 +186,13 @@ public class DomService {
                         }
                 }
             }
-            createMatchedResponseProcessing(responseProcessingString, responseId, problem.getWeight());
-
             // Add the <outcomeDeclaration> Nodes to the DOM tree
             createOutcomeDeclarations(problem, qtiDocument, assessmentItemNode);
 
-
-            Document responseProcessingElement = stringToXmlDocument(responseProcessingString.toString());
-            Node importedResponseNode = qtiDocument.importNode(responseProcessingElement.getDocumentElement(), true);
-
             assessmentItemNode.appendChild(itemBody);
-            assessmentItemNode.appendChild(importedResponseNode);
+
+            // Add the <responseProcessing> Node to the DOM tree
+            createMatchedResponseProcessing(qtiDocument, assessmentItemNode, responseId, problem.getWeight());
 
             try {
                 build(qtiDocument, course, problem.getFileIdentifier() + XML_EXTENSION);
@@ -233,39 +231,56 @@ public class DomService {
         assessmentItemNode.appendChild(outcomeMaxDeclaration); //append to assessmentItem
     }
 
-    private void createMatchedResponseProcessing(StringBuilder responseProcessingString, int responseId, float problemWeight) {
+    private void createMatchedResponseProcessing(Document qtiDocument, Node assessmentItemNode, int responseId, float problemWeight) {
         // overriding the match_template of QTI v2.1
-        responseProcessingString.append(
-                "<responseProcessing>" +
-                        "<responseCondition>\n" +
-                        "             <responseIf>\n" +
-                        "                <and>\n"
-        );
+        Element responseProcessing = qtiDocument.createElement("responseProcessing");
+        assessmentItemNode.appendChild(responseProcessing);
 
+        Element responseCondition = qtiDocument.createElement("responseCondition");
+        responseProcessing.appendChild(responseCondition);
+
+        Element responseIf = qtiDocument.createElement("responseIf");
+        responseCondition.appendChild(responseIf);
+
+        Element and = qtiDocument.createElement("and");
+        responseIf.appendChild(and);
+
+        // For each interaction in itemBody check if the candidate answer matches the correct answer
         for (int i = 1; i < responseId; i++) {
-            responseProcessingString.append(
-                    "                    <match>\n" +
-                            "                        <variable identifier=\"RESPONSE_" + i + "\"/>\n" +
-                            "                        <correct identifier=\"RESPONSE_" + i + "\"/>\n" +
-                            "                    </match>\n"
-            );
+            Element match = qtiDocument.createElement("match");
+            and.appendChild(match);
+
+            Element variable = qtiDocument.createElement("variable");
+            variable.setAttribute("identifier", ("RESPONSE_" + i));
+            match.appendChild(variable);
+
+            Element correct = qtiDocument.createElement("correct");
+            correct.setAttribute("identifier", ("RESPONSE_" + i));
+            match.appendChild(correct);
         }
 
-        // finish the responseProcessingElement
-        responseProcessingString.append(
-                "                </and>\n" +
-                        "                <setOutcomeValue identifier=\"SCORE\">\n" +
-                        "                    <baseValue baseType=\"float\">" + problemWeight + "</baseValue>\n" +
-                        "                </setOutcomeValue>\n" +
-                        "            </responseIf>\n" +
-                        "            <responseElse>\n" +
-                        "                <setOutcomeValue identifier=\"SCORE\">\n" +
-                        "                    <baseValue baseType=\"float\">0.0</baseValue>\n" +
-                        "                </setOutcomeValue>\n" +
-                        "            </responseElse>\n" +
-                        "</responseCondition>\n" +
-                        "</responseProcessing>"
-        );
+        // Set outcomeValue if answers are correct
+        Element setOutcomeValueIf = qtiDocument.createElement("setOutcomeValue");
+        setOutcomeValueIf.setAttribute("identifier", "SCORE");
+        responseIf.appendChild(setOutcomeValueIf);
+
+        Element baseValueIf = qtiDocument.createElement("baseValue");
+        baseValueIf.setAttribute("baseType", "float");
+        baseValueIf.setTextContent(String.valueOf(problemWeight));
+        setOutcomeValueIf.appendChild(baseValueIf);
+
+        // If the answers were not correct give the candidate 0 points
+        Element responseElse = qtiDocument.createElement("responseElse");
+        responseCondition.appendChild(responseElse);
+
+        Element setOutcomeValueElse = qtiDocument.createElement("setOutcomeValue");
+        setOutcomeValueElse.setAttribute("identifier", "SCORE");
+        responseElse.appendChild(setOutcomeValueElse);
+
+        Element baseValueElse = qtiDocument.createElement("baseValue");
+        baseValueElse.setAttribute("baseType", "float");
+        baseValueElse.setTextContent("0.0");
+        setOutcomeValueElse.appendChild(baseValueElse);
     }
 
     private void buildMultipleChoiceItem(Document qtiDocument, Node problemChild, Element itemBody, StringBuilder promptStringBuilder,
@@ -319,9 +334,9 @@ public class DomService {
                     char character = 'A';
                     for (int k = 0; k < checkboxresponseChildren.getLength(); k++) {
                         Node choiceNode = checkboxresponseChildren.item(k);
-                        if (choiceNode.getNodeName().equals("choice")) {
+                        if (choiceNode.getNodeName().equalsIgnoreCase("choice")) {
                             String correctness = choiceNode.getAttributes().item(0).getTextContent();
-                            if (correctness.equals("true")) {
+                            if (correctness.equalsIgnoreCase("true")) {
                                 Element value = qtiDocument.createElement("value");
                                 value.setTextContent(String.valueOf(character) + responseId);
                                 correctResponse.appendChild(value);
@@ -333,8 +348,9 @@ public class DomService {
                         }
                     }
 
+
                     responseDeclaration.setAttribute("cardinality", "multiple");
-//
+
                     choiceInteraction.setAttribute("maxChoices", "0");
                     break;
                 default:
@@ -400,9 +416,9 @@ public class DomService {
                     char character = 'A';
                     for (int k = 0; k < choicegroupResponseChildren.getLength(); k++) {
                         Node choiceNode = choicegroupResponseChildren.item(k);
-                        if (choiceNode.getNodeName().equals("choice")) {
+                        if (choiceNode.getNodeName().equalsIgnoreCase("choice")) {
                             String correctness = choiceNode.getAttributes().item(0).getTextContent();
-                            if (correctness.equals("true")) {
+                            if (correctness.equalsIgnoreCase("true")) {
                                 Element value = qtiDocument.createElement("value");
                                 value.setTextContent(String.valueOf(character) + responseId);
                                 correctResponse.appendChild(value);
@@ -414,8 +430,8 @@ public class DomService {
                         }
                     }
 
-                    responseDeclaration.setAttribute("cardinality", "multiple");
-//
+                    responseDeclaration.setAttribute("cardinality", "single");
+
                     choiceInteraction.setAttribute("maxChoices", "1");
                     break;
                 default:
@@ -428,6 +444,110 @@ public class DomService {
         itemBody.appendChild(choiceInteraction);
         assessmentItemNode.appendChild(responseDeclaration);
     }
+
+    private void buildInlineChoiceItem(Document qtiDocument, Node problemChild, Element itemBody, StringBuilder promptStringBuilder,
+                                       Node assessmentItemNode, int responseId) {
+        // create responseDeclaration element with its child correctResponse
+        Element responseDeclaration = qtiDocument.createElement("responseDeclaration");
+        String responseIdentifier = "RESPONSE_" + responseId;
+        responseDeclaration.setAttribute("identifier", responseIdentifier);
+        responseDeclaration.setAttribute("baseType", "identifier");
+
+        Element correctResponse = qtiDocument.createElement("correctResponse");
+        responseDeclaration.appendChild(correctResponse);
+
+        // create choiceInteraction element
+        Element inlineChoiceInteraction = qtiDocument.createElement("inlineChoiceInteraction");
+        // also add the responseIdentifier to the choiceInteraction that matches the responseDeclaration
+        inlineChoiceInteraction.setAttribute("responseIdentifier", responseIdentifier);
+        inlineChoiceInteraction.setAttribute("shuffle", "true");
+
+
+        // Add the <blockQuote> Node as the first child of choiceInteraction (required)
+        Node blockQuote = qtiDocument.createElement("blockquote");
+
+        Element paragraphElement = qtiDocument.createElement("p");
+
+        // If multiple items in problem component, problemList will be used
+        paragraphElement.setTextContent(promptStringBuilder.toString());
+
+
+        itemBody.appendChild(blockQuote);
+
+        // the children of optionresponse
+        NodeList optionResponseChildren = problemChild.getChildNodes();
+
+
+        for (int j = 0; j < optionResponseChildren.getLength(); j++) {
+
+            // the children, such as: label, description ...
+            Node optionResponseChild = optionResponseChildren.item(j);
+
+            Element breakingElement = qtiDocument.createElement("br");
+
+            switch (optionResponseChild.getNodeName()) {
+                case "label":
+                    paragraphElement.setTextContent(paragraphElement.getTextContent() + optionResponseChild.getTextContent());
+                    paragraphElement.appendChild(breakingElement);
+                    break;
+                case "optioninput":
+                    // loop through each choice of the Node "optioninput"
+                    char character = 'A';
+
+                    if (optionResponseChild.hasAttributes()) {
+                        if (optionResponseChild.getAttributes().getNamedItem("options") != null) {
+
+                            Pattern p = Pattern.compile("'([^']*)'");
+                            Matcher m = p.matcher(optionResponseChild.getAttributes().getNamedItem("options").getTextContent());
+                            while (m.find()) {
+                                if (optionResponseChild.getAttributes().getNamedItem("correct").getNodeValue().equalsIgnoreCase(m.group(1))) {
+                                    Element value = qtiDocument.createElement("value");
+                                    value.setTextContent(String.valueOf(character) + responseId);
+                                    correctResponse.appendChild(value);
+                                }
+                                Element inlineChoice = qtiDocument.createElement("inlineChoice");
+                                inlineChoice.setAttribute("identifier", String.valueOf(character++) + responseId);
+                                inlineChoice.setTextContent(m.group(1));
+                                inlineChoiceInteraction.appendChild(inlineChoice);
+                            }
+                        }
+
+
+                    } else {
+                        NodeList optioninputResponseChildren = optionResponseChild.getChildNodes();
+                        for (int k = 0; k < optioninputResponseChildren.getLength(); k++) {
+                            Node choiceNode = optioninputResponseChildren.item(k);
+                            if (choiceNode.getNodeName().equalsIgnoreCase("option")) {
+                                String correctness = choiceNode.getAttributes().item(0).getTextContent();
+                                if (correctness.equalsIgnoreCase("true")) {
+                                    Element value = qtiDocument.createElement("value");
+                                    value.setTextContent(String.valueOf(character) + responseId);
+                                    correctResponse.appendChild(value);
+                                }
+                                Element inlineChoice = qtiDocument.createElement("inlineChoice");
+                                inlineChoice.setAttribute("identifier", String.valueOf(character++) + responseId);
+                                inlineChoice.setTextContent(choiceNode.getTextContent());
+                                inlineChoiceInteraction.appendChild(inlineChoice);
+                            }
+                        }
+                    }
+
+                    responseDeclaration.setAttribute("cardinality", "single");
+
+                    break;
+                default:
+                    if (optionResponseChild.getNodeName().equals("p") || optionResponseChild.getNodeName().equals("h3")) {
+                        Node importedChoiceRespondChild = qtiDocument.importNode(optionResponseChild, true);
+                        blockQuote.appendChild(importedChoiceRespondChild);
+                    }
+            }
+        }
+        blockQuote.appendChild(paragraphElement);
+        paragraphElement.appendChild(inlineChoiceInteraction);
+        assessmentItemNode.appendChild(responseDeclaration);
+
+    }
+
 
     private static Document stringToXmlDocument(String str) {
 
