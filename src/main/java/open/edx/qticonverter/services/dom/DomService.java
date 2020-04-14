@@ -1,6 +1,7 @@
 package open.edx.qticonverter.services.dom;
 
 import open.edx.qticonverter.models.*;
+import open.edx.qticonverter.models.qti.item.AssessmentItem;
 import open.edx.qticonverter.models.qti.manifest.Manifest;
 import open.edx.qticonverter.models.qti.manifest.ManifestBuilder;
 import open.edx.qticonverter.models.qti.manifest.ManifestVersionTwoOneBuilder;
@@ -94,7 +95,7 @@ public class DomService {
 
     private void createManifestXmlFile(Course course) {
         ManifestBuilder manifestBuilder = new ManifestVersionTwoOneBuilder();
-        manifestBuilder.initializeDocument();
+        manifestBuilder.initializeDocument(); // We initialize a Document object to work on
 
         manifestBuilder.setMetadata("QTIv2.1 Package", "1.0.0");
 
@@ -128,6 +129,8 @@ public class DomService {
     private void createAssessmentItemFiles(Course course) {
         List<Problem> problems = course.getProblems();
         for (Problem problem : problems) {
+            AssessmentItem assessmentItemObj = new AssessmentItem(problem.getId(), problem.getName(), problem.getTimeDependent());
+
 
             DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
             DocumentBuilder documentBuilder = null;

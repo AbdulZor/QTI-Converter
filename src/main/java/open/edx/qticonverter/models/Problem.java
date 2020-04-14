@@ -15,6 +15,7 @@ public class Problem implements BlockTypeable {
     private List<String> dependencyList;
     private float weight;
     private int max_attempts;
+    private boolean timeDependent;
     private Definition definition;
 
     // add this feature later (QTI 2.2 feature)
@@ -103,5 +104,13 @@ public class Problem implements BlockTypeable {
                 ", definition=" + definition +
                 ", styleSheetFilePath='" + styleSheetFilePath + '\'' +
                 '}';
+    }
+
+    public boolean getTimeDependent() {
+        return timeDependent;
+    }
+
+    public void setTimeDependent(boolean timeDependent) {
+        this.timeDependent = timeDependent;
     }
 }

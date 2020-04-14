@@ -1,5 +1,7 @@
 package open.edx.qticonverter.models.qti.item;
 
+import open.edx.qticonverter.models.qti.item.outcomeDeclarations.OutcomeDeclarationStrategy;
+import open.edx.qticonverter.models.qti.item.responseDeclarations.ResponseDeclarationStrategy;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -10,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AssessmentItem {
-    public static final int STRING256_CONTRAINT = 256;
+    public static final int STRING256_CONSTRAINT = 256;
     private Document document;
     private Element documentElement;
 
@@ -24,10 +26,8 @@ public class AssessmentItem {
     private String toolName;
 
     // Children of AssessmentTest
-    private Element responseDeclaration;
-    private Element outcomeDeclaration;
-    private Element templateDeclaration;
-    private Element templateProcessing;
+    private ResponseDeclarationStrategy responseDeclaration;
+    private List<OutcomeDeclarationStrategy> outcomeDeclaration;
     private List<Element> styleSheets;
     private Element itemBody;
     private Element responseProcessing;
@@ -93,11 +93,11 @@ public class AssessmentItem {
 
     public void setLabel(String label) {
 
-        if (label.length() <= STRING256_CONTRAINT) {
+        if (label.length() <= STRING256_CONSTRAINT) {
             this.documentElement.setAttribute("label", label);
             this.label = label;
         } else {
-            System.out.println("The label contains more than " + STRING256_CONTRAINT + " characters");
+            System.out.println("The label contains more than " + STRING256_CONSTRAINT + " characters");
         }
     }
 
@@ -133,49 +133,29 @@ public class AssessmentItem {
     }
 
     public void setToolName(String toolName) {
-        if (toolName.length() <= STRING256_CONTRAINT) {
+        if (toolName.length() <= STRING256_CONSTRAINT) {
             this.documentElement.setAttribute("toolName", toolName);
             this.toolName = toolName;
         } else {
-            System.out.println("The toolName contains more than " + STRING256_CONTRAINT + " characters");
+            System.out.println("The toolName contains more than " + STRING256_CONSTRAINT + " characters");
         }
     }
 
 
-    public Element getResponseDeclaration() {
+    public ResponseDeclarationStrategy getResponseDeclaration() {
         return responseDeclaration;
     }
 
-    public void setResponseDeclaration(Element responseDeclaration) {
-        this.documentElement.appendChild(responseDeclaration);
+    public void setResponseDeclaration(ResponseDeclarationStrategy responseDeclaration) {
         this.responseDeclaration = responseDeclaration;
     }
 
-    public Element getOutcomeDeclaration() {
+    public List<OutcomeDeclarationStrategy> getOutcomeDeclaration() {
         return outcomeDeclaration;
     }
 
-    public void setOutcomeDeclaration(Element outcomeDeclaration) {
-        this.documentElement.appendChild(outcomeDeclaration);
+    public void setOutcomeDeclaration(List<OutcomeDeclarationStrategy> outcomeDeclaration) {
         this.outcomeDeclaration = outcomeDeclaration;
-    }
-
-    public Element getTemplateDeclaration() {
-        return templateDeclaration;
-    }
-
-    public void setTemplateDeclaration(Element templateDeclaration) {
-        this.documentElement.appendChild(templateDeclaration);
-        this.templateDeclaration = templateDeclaration;
-    }
-
-    public Element getTemplateProcessing() {
-        return templateProcessing;
-    }
-
-    public void setTemplateProcessing(Element templateProcessing) {
-        this.documentElement.appendChild(templateProcessing);
-        this.templateProcessing = templateProcessing;
     }
 
     public List<Element> getStyleSheets() {
