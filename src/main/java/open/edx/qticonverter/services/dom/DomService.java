@@ -2,11 +2,13 @@ package open.edx.qticonverter.services.dom;
 
 import open.edx.qticonverter.models.*;
 import open.edx.qticonverter.models.qti.manifest.Manifest;
+import open.edx.qticonverter.models.qti.manifest.ManifestBuilder;
+import open.edx.qticonverter.models.qti.manifest.ManifestVersionTwoOneBuilder;
 import open.edx.qticonverter.services.CourseService;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -28,7 +30,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@Component
+@Service
 public class DomService {
     // Constants
     private final CourseService courseService;
@@ -91,8 +93,10 @@ public class DomService {
     }
 
     private void createManifestXmlFile(Course course) {
-        Manifest manifest = new Manifest();
-        manifest.setMetadata("QTIv2.1 Package", "1.0.0");
+        ManifestBuilder manifestBuilder = new ManifestVersionTwoOneBuilder();
+        manifestBuilder.initializeDocument();
+
+        manifestBuilder.setMetadata("QTIv2.1 Package", "1.0.0");
 
         List<String> problemReferences = new ArrayList<>();
         List<Problem> problems = course.getProblems();
@@ -100,7 +104,7 @@ public class DomService {
             problemReferences.add(problem.getFileIdentifier());
 
             // Add resource (item/problem) to manifest
-            manifest.addResource(problem.getId().trim(),
+            manifestBuilder.addResource(problem.getId().trim(),
                     "imsqti_item_xmlv2p1",
                     problem.getFileIdentifier() + XML_EXTENSION,
                     null
@@ -108,11 +112,12 @@ public class DomService {
 
         }
         // Add assessmentItem resources with optional dependencies
-        manifest.addResource(course.getId(),
+        manifestBuilder.addResource(course.getId(),
                 "imsqti_test_xmlv2p1",
                 course.getName() + "-" + course.getId() + XML_EXTENSION, // we use course because, this is what is used in the assessment part element
                 problemReferences);
 
+        Manifest manifest = manifestBuilder.getResult();
         try {
             build(manifest.getDocument(), course, "imsmanifest.xml");
         } catch (TransformerException e) {
@@ -511,8 +516,6 @@ public class DomService {
                                 inlineChoiceInteraction.appendChild(inlineChoice);
                             }
                         }
-
-
                     } else {
                         NodeList optioninputResponseChildren = optionResponseChild.getChildNodes();
                         for (int k = 0; k < optioninputResponseChildren.getLength(); k++) {
