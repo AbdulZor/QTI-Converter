@@ -28,25 +28,25 @@ public class ManifestVersionTwoOneBuilder implements ManifestBuilder {
         DocumentBuilder builder = null;
         try {
             builder = dbf.newDocumentBuilder();
+            builder.reset();
+            this.document = builder.newDocument();
+
+            // create the root element with its attributes
+            rootManifestElement = this.document.createElement("manifest");
+            this.document.appendChild(rootManifestElement);
+            this.rootManifestElement.setAttribute("xmlns", XMLNS);
+            this.rootManifestElement.setAttribute("xmlns:xsi", XMLNS_XSI);
+            this.rootManifestElement.setAttribute("xsi:schemaLocation", XSI_SCHEMA_LOCATION);
+            this.rootManifestElement.setAttribute("identifier", IDENTIFIER);
+
+            this.rootMetadataElement = this.document.createElement("metadata");
+            this.rootManifestElement.appendChild(this.rootMetadataElement);
+
+            this.rootResourcesElement = this.document.createElement("resources");
+            this.rootManifestElement.appendChild(this.rootResourcesElement);
         } catch (ParserConfigurationException e) {
             e.printStackTrace();
         }
-        assert builder != null;
-        this.document = builder.newDocument();
-
-        // create the root element with its attributes
-        rootManifestElement = this.document.createElement("manifest");
-        this.document.appendChild(rootManifestElement);
-        this.rootManifestElement.setAttribute("xmlns", XMLNS);
-        this.rootManifestElement.setAttribute("xmlns:xsi", XMLNS_XSI);
-        this.rootManifestElement.setAttribute("xsi:schemaLocation", XSI_SCHEMA_LOCATION);
-        this.rootManifestElement.setAttribute("identifier", IDENTIFIER);
-
-        this.rootMetadataElement = this.document.createElement("metadata");
-        this.rootManifestElement.appendChild(this.rootMetadataElement);
-
-        this.rootResourcesElement = this.document.createElement("resources");
-        this.rootManifestElement.appendChild(this.rootResourcesElement);
     }
 
     @Override
