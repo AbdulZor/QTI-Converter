@@ -1,7 +1,7 @@
 package open.edx.qticonverter.models.qti.manifest;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
+import org.jdom2.Document;
+import org.jdom2.Element;
 
 public class Manifest {
     private Document document;

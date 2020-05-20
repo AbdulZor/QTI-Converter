@@ -1,5 +1,6 @@
 package open.edx.qticonverter.models.qti.item.responseDeclarations;
 
+import open.edx.qticonverter.models.qti.item.AssessmentItem21;
 import open.edx.qticonverter.models.qti.item.enums.BaseType;
 import open.edx.qticonverter.models.qti.item.enums.Cardinality;
 import org.jdom2.Element;
@@ -17,10 +18,10 @@ public class ResponseDeclaration21 implements ResponseDeclarationStrategy {
 
     public ResponseDeclaration21() {
         // Build the DOM element:
-        Element responseDeclaration = new Element("responseDeclaration");
+        Element responseDeclaration = new Element("responseDeclaration", AssessmentItem21.XMLNS_V21);
 
-        Element correctResponse = new Element("correctResponse");
-        Element value = new Element("value");
+        Element correctResponse = new Element("correctResponse", AssessmentItem21.XMLNS_V21);
+        Element value = new Element("value", AssessmentItem21.XMLNS_V21);
         value.setText(null);
 
         // Associate created Elements
@@ -68,7 +69,7 @@ public class ResponseDeclaration21 implements ResponseDeclarationStrategy {
     }
 
     public void setBaseType(BaseType baseType) {
-        this.responseDeclarationElement.setAttribute("baseType", baseType.name());
+        this.responseDeclarationElement.setAttribute("baseType", baseType.name().toLowerCase());
         this.baseType = baseType;
     }
 

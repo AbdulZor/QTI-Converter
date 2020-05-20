@@ -1,7 +1,6 @@
 package open.edx.qticonverter.models.qti.item.responseDeclarations;
 
-import org.jdom2.Element;
+import open.edx.qticonverter.models.qti.QtiElement;
 
-public interface ResponseDeclarationStrategy {
-    Element getElement();
+public interface ResponseDeclarationStrategy extends QtiElement {
 }
