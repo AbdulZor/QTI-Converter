@@ -1,6 +1,4 @@
-package open.edx.qticonverter.models;
-
-import open.edx.qticonverter.models.interfaces.BlockTypeable;
+package open.edx.qticonverter.models.olx;
 
 import java.util.List;
 

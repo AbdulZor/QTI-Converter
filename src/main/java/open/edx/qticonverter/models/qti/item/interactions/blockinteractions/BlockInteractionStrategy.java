@@ -4,6 +4,7 @@ import open.edx.qticonverter.models.qti.item.AssessmentItem21;
 import open.edx.qticonverter.models.qti.item.enums.QtiBodyElement21;
 import open.edx.qticonverter.models.qti.item.interactions.Block;
 import org.jdom2.Element;
+import org.jdom2.Namespace;
 import org.jdom2.Text;
 
 public abstract class BlockInteractionStrategy implements Block {
@@ -15,6 +16,7 @@ public abstract class BlockInteractionStrategy implements Block {
 
     /**
      * Append a text element to the prompt
+     *
      * @param text        the new text that gets appended
      * @param bodyElement the wrapper of the text element in the prompt
      * @return the created wrapper element of the text
@@ -29,8 +31,11 @@ public abstract class BlockInteractionStrategy implements Block {
         return textBodyElement;
     }
 
-    public void appendToPrompt(Text element) {
-        getPrompt().getElement().addContent(new Element(QtiBodyElement21.br.name(), AssessmentItem21.XMLNS_V21)).addContent(element);
+    public Element appendToPrompt(Text element) {
+        if (this.prompt == null) {
+            setPrompt(new Prompt21());
+        }
+        return getPrompt().getElement().addContent(new Element(QtiBodyElement21.br.name(), AssessmentItem21.XMLNS_V21)).addContent(element);
     }
 
     public Prompt21 getPrompt() {
@@ -48,9 +53,14 @@ public abstract class BlockInteractionStrategy implements Block {
 
     public void setPrompt(Prompt21 prompt) {
         this.prompt = prompt;
-//        if (this.element.getChild("prompt") != null){
-//            this.element.removeChild("prompt");
-//        }
-        this.element.addContent(prompt.getElement());
+
+        if (prompt == null) {
+//            if (this.prompt != null){
+            this.element.removeChild("prompt");
+//            }
+        } else {
+            this.element.addContent(prompt.getElement());
+        }
+
     }
 }

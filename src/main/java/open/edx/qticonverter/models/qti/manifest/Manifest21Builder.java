@@ -5,15 +5,16 @@ import org.jdom2.*;
 import java.util.List;
 
 public class Manifest21Builder implements ManifestBuilder {
-    private final String XMLNS = "http://www.imsglobal.org/xsd/imscp_v1p1";
-    private final String XMLNS_XSI = "http://www.w3.org/2001/XMLSchema-instance";
-    private final String XSI_SCHEMA_LOCATION = "http://www.imsglobal.org/xsd/imscp_v1p1 imscp_v1p1.xsd " +
+    public static final String XMLNS = "http://www.imsglobal.org/xsd/imscp_v1p1";
+    public static final String XMLNS_XSI = "http://www.w3.org/2001/XMLSchema-instance";
+    public static final String XSI_SCHEMA_LOCATION = "http://www.imsglobal.org/xsd/imscp_v1p1 imscp_v1p1.xsd " +
             "http://www.imsglobal.org/xsd/imsmd_v1p2 imsmd_v1p2p4.xsd http://www.imsglobal.org/xsd/imsqti_metadata_v2p1  " +
             "http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_metadata_v2p1.xsd";
     private final String IDENTIFIER = "manifest1";
 
     private Document document;
     private Element rootManifestElement;
+    private Element rootOrganizationsElement;
     private Element rootResourcesElement;
     private Element rootMetadataElement;
 
@@ -33,6 +34,9 @@ public class Manifest21Builder implements ManifestBuilder {
 
         this.rootMetadataElement = new Element("metadata");
         this.rootManifestElement.addContent(this.rootMetadataElement);
+
+        this.rootOrganizationsElement = new Element("organizations");
+        this.rootManifestElement.addContent(this.rootOrganizationsElement);
 
         this.rootResourcesElement = new Element("resources");
         this.rootManifestElement.addContent(this.rootResourcesElement);
@@ -78,6 +82,6 @@ public class Manifest21Builder implements ManifestBuilder {
 
     @Override
     public Manifest getResult() {
-        return new Manifest(document, rootManifestElement, rootResourcesElement, rootMetadataElement);
+        return new Manifest(document, rootManifestElement, rootOrganizationsElement, rootResourcesElement, rootMetadataElement);
     }
 }

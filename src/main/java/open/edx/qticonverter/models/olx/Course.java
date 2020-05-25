@@ -1,7 +1,6 @@
-package open.edx.qticonverter.models;
+package open.edx.qticonverter.models.olx;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import open.edx.qticonverter.models.interfaces.BlockTypeable;
 import open.edx.qticonverter.mongomodel.Structure;
 import org.springframework.data.annotation.Id;
 

@@ -1,19 +1,18 @@
-package open.edx.qticonverter.models;
+package open.edx.qticonverter.models.olx;
 
-import open.edx.qticonverter.models.interfaces.BlockTypeable;
 import org.springframework.data.annotation.Id;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class Sequential implements BlockTypeable {
+public class Chapter implements BlockTypeable {
     @Id
-    private String id;
-    private String name;
-    private List<Vertical> verticals;
+    public String id;
+    public String name;
+    public List<Sequential> sequentials;
 
-    public Sequential() {
-        this.verticals = new ArrayList<>();
+    public Chapter() {
+        this.sequentials = new ArrayList<>();
     }
 
     public String getId() {
@@ -32,27 +31,27 @@ public class Sequential implements BlockTypeable {
         this.name = name;
     }
 
-    public List<Vertical> getVerticals() {
-        return verticals;
+    public List<Sequential> getSequentials() {
+        return sequentials;
     }
 
-    public void setVerticals(List<Vertical> verticals) {
-        this.verticals = verticals;
+    public void setSequentials(List<Sequential> sequentials) {
+        this.sequentials = sequentials;
     }
 
     @Override
     public void addChildBlock(BlockTypeable child) {
         if (child != null) {
-            verticals.add((Vertical) child);
+            this.sequentials.add((Sequential) child);
         }
     }
 
     @Override
     public String toString() {
-        return "Sequential{" +
+        return "Chapter{" +
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
-                ", verticals=" + verticals +
+                ", sequentials=" + sequentials +
                 '}';
     }
 }

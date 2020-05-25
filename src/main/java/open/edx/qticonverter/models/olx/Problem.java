@@ -1,6 +1,5 @@
-package open.edx.qticonverter.models;
+package open.edx.qticonverter.models.olx;
 
-import open.edx.qticonverter.models.interfaces.BlockTypeable;
 import open.edx.qticonverter.mongomodel.Definition;
 import org.springframework.data.annotation.Id;
 

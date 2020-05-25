@@ -1,6 +1,6 @@
 package open.edx.qticonverter.controllers;
 
-import open.edx.qticonverter.models.Course;
+import open.edx.qticonverter.models.olx.Course;
 import open.edx.qticonverter.services.CourseService;
 import org.bson.types.ObjectId;
 import org.springframework.web.bind.annotation.GetMapping;

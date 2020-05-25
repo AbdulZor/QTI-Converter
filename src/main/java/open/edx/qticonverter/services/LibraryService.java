@@ -1,6 +1,6 @@
 package open.edx.qticonverter.services;
 
-import open.edx.qticonverter.models.Library;
+import open.edx.qticonverter.models.olx.Library;
 import open.edx.qticonverter.mongomodel.Version;
 import open.edx.qticonverter.repositories.StructuresRepo;
 import open.edx.qticonverter.repositories.VersionsRepo;
