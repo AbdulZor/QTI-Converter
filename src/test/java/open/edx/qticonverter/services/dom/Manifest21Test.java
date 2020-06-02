@@ -64,8 +64,8 @@ public class Manifest21Test {
 
         Document expectedDocument = new Document(expectedManifestElement);
 
-        // check if nameSpaces are assigned correctly
         assertEquals(expectedDocument.getRootElement().getName(), actualDocument.getRootElement().getName(), "The root elements name do not match");
+        // check if nameSpaces are assigned correctly
         assertEquals(expectedDocument.getRootElement().getNamespace(), actualDocument.getRootElement().getNamespace(), "The root element default namespace do not match");
         assertEquals(expectedDocument.getRootElement().getNamespace(xsi.getPrefix()), actualDocument.getRootElement().getNamespace(xsi.getPrefix()));
         assertEquals(expectedDocument.getRootElement().getAttributeValue("schemaLocation"), actualDocument.getRootElement().getAttributeValue("schemaLocation"));

@@ -71,11 +71,11 @@ public class AssessmentItem21 {
     public void buildDom() {
         // Append to the DOM in the correct order conform the QTI standard
         for (ResponseDeclarationStrategy responseDeclaration : this.responseDeclarations) {
-            this.documentElement.addContent(responseDeclaration.getElement());  // uncomment
+            this.documentElement.addContent(responseDeclaration.getElement());
         }
 
         for (OutcomeDeclarationStrategy outcomeDeclaration : this.outcomeDeclarations) {
-            this.documentElement.addContent(outcomeDeclaration.getElement());  // uncomment
+            this.documentElement.addContent(outcomeDeclaration.getElement());
         }
 
         this.documentElement.addContent(itemBody.getElement());
@@ -214,6 +214,10 @@ public class AssessmentItem21 {
 
     public void setOutcomeDeclarations(List<OutcomeDeclarationStrategy> outcomeDeclarations) {
         this.outcomeDeclarations = outcomeDeclarations;
+    }
+
+    public void addOutcomeDeclaration(OutcomeDeclarationStrategy outcomeDeclaration) {
+        this.outcomeDeclarations.add(outcomeDeclaration);
     }
 
     public List<Element> getStyleSheets() {

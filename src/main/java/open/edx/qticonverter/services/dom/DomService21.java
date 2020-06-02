@@ -11,6 +11,9 @@ import open.edx.qticonverter.models.qti.item.enums.Cardinality;
 import open.edx.qticonverter.models.qti.item.enums.QtiBodyElement21;
 import open.edx.qticonverter.models.qti.item.interactions.blockinteractions.ChoiceInteraction21;
 import open.edx.qticonverter.models.qti.item.interactions.blockinteractions.Prompt21;
+import open.edx.qticonverter.models.qti.item.outcomeDeclarations.MaxScoreOutcomeDeclaration;
+import open.edx.qticonverter.models.qti.item.outcomeDeclarations.OutcomeDeclarationStrategy;
+import open.edx.qticonverter.models.qti.item.outcomeDeclarations.ScoreOutcomeDeclaration;
 import open.edx.qticonverter.models.qti.item.responseDeclarations.ResponseDeclaration21;
 import open.edx.qticonverter.models.qti.item.responseDeclarations.ResponseDeclarationStrategy;
 import open.edx.qticonverter.models.qti.manifest.Manifest;
@@ -50,9 +53,9 @@ public class DomService21 {
         this.courseService = courseService;
     }
 
-    public void createQtiPackages() {
+    public void createQtiPackages() throws IOException {
         List<Course> courses;
-        try {
+
             courses = this.courseService.getCourses();
 
             for (Course course : courses) {
@@ -60,17 +63,13 @@ public class DomService21 {
                 try {
                     FileUtils.deleteDirectory(file);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    throw new IOException("Course directory could not be deleted");
                 }
                 boolean directoryIsMade = file.mkdir();
 
                 if (directoryIsMade)
                     createManifestXmlFile(course);
             }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     public void createQtiPackageForId(String id) {
@@ -82,7 +81,7 @@ public class DomService21 {
             try {
                 FileUtils.deleteDirectory(file);
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new IOException("Course directory could not be deleted");
             }
             boolean directoryIsMade = file.mkdir();
 
@@ -96,7 +95,7 @@ public class DomService21 {
         }
     }
 
-    private void createManifestXmlFile(Course course) {
+    private void createManifestXmlFile(Course course) throws IOException{
         ManifestBuilder manifestBuilder = new Manifest21Builder();
         manifestBuilder.initializeDocument(); // We initialize a Document object to work on
 
@@ -127,13 +126,21 @@ public class DomService21 {
 
     }
 
-    private void createAssessmentItemFiles(Course course) {
+    private void createAssessmentItemFiles(Course course) throws IOException{
         List<Problem> problems = course.getProblems();
         for (Problem problem : problems) {
             AssessmentItem21 assessmentItemObj = new AssessmentItem21(problem.getId(), problem.getName(), problem.getTimeDependent(), false);
 
             ItemBody21 itemBody = new ItemBody21();
             assessmentItemObj.setItemBody(itemBody);
+
+            OutcomeDeclarationStrategy scoreOutcomeDeclaration = new ScoreOutcomeDeclaration();
+            scoreOutcomeDeclaration.createOutcomeDeclaration(0.0f);
+            assessmentItemObj.addOutcomeDeclaration(scoreOutcomeDeclaration);
+
+            OutcomeDeclarationStrategy maxOutcomeDeclaration = new MaxScoreOutcomeDeclaration();
+            maxOutcomeDeclaration.createOutcomeDeclaration(problem.getWeight());
+            assessmentItemObj.addOutcomeDeclaration(maxOutcomeDeclaration);
 
             String problemXMLString = problem.getDefinition().getData();
             logger.info("XML STRING: {}", problemXMLString);
@@ -492,7 +499,7 @@ public class DomService21 {
 //    }
 
 
-    private static Document stringToXmlDocument(String str) {
+    private static Document stringToXmlDocument(String str) throws IOException {
         Document document = null;
 
         try {
@@ -500,12 +507,12 @@ public class DomService21 {
             SAXBuilder saxBuilder = new SAXBuilder();
             document = saxBuilder.build(input);
         } catch (JDOMException | IOException e) {
-            e.printStackTrace();
+            throw new IOException("Could not build DOM tree from ByteArrayInputStream");
         }
         return document;
     }
 
-    private void build(Document document, Course course, String fileName) {
+    private void build(Document document, Course course, String fileName) throws IOException {
         // write the content into manifest xml file
         // NOTE: if you want the thespart to be something else (sequential ...) you need to move this transform code
         // over to the add* method. This piece of code creates parses the DOM into an XML file
@@ -517,7 +524,7 @@ public class DomService21 {
         try {
             xmlOutput.output(document, new FileWriter(problemFilePath));
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new IOException("Could not create File");
         }
     }
 }
