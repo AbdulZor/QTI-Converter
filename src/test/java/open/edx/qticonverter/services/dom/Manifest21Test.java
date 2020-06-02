@@ -3,6 +3,7 @@ package open.edx.qticonverter.services.dom;
 import open.edx.qticonverter.models.qti.manifest.Manifest;
 import open.edx.qticonverter.models.qti.manifest.Manifest21Builder;
 import open.edx.qticonverter.models.qti.manifest.ManifestBuilder;
+import open.edx.qticonverter.models.qti.manifest.enums.SchemaVersion;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.Namespace;
@@ -29,6 +30,8 @@ public class Manifest21Test {
     void setUp() {
         this.manifestBuilder1 = new Manifest21Builder();
         this.manifestBuilder2 = new Manifest21Builder();
+
+        this.manifestBuilder2.initializeDocument();
     }
 
     @AfterEach
@@ -84,5 +87,36 @@ public class Manifest21Test {
         assertEquals(expectedMetaDataElement.getName(), manifest.getRootMetadataElement().getName());
         assertEquals(expectedResourcesElement.getName(), manifest.getRootResourcesElement().getName());
         assertEquals(expectedOrganizationElement.getName(), manifest.getRootOrganizationsElement().getName());
+    }
+
+    @Test
+    void setMetadata_Should_Create_Schema_SchemaVersion_Elements() {
+        this.manifestBuilder2.setMetadata("IMS Content", SchemaVersion.V11);
+
+        Manifest manifest = this.manifestBuilder2.getResult();
+
+        Element schema = manifest.getRootMetadataElement().getChild("schema", Namespace.getNamespace(XMLNS));
+        Element schemaVersion = manifest.getRootMetadataElement().getChild("schemaversion", Namespace.getNamespace(XMLNS));
+
+        assertNotEquals("", schema);
+        assertNotNull(schemaVersion);
+
+        assertEquals("schema", schema.getName());
+        assertEquals("schemaversion", schemaVersion.getName());
+    }
+
+    @Test
+    void setMetadata_Should_Create_Correct_Schema_SchemaVersion_Elements() {
+        String expectedSchema = "IMS Content";
+        SchemaVersion expectedSchemaVersion = SchemaVersion.V11;
+        this.manifestBuilder2.setMetadata("IMS Content", SchemaVersion.V11);
+
+        Manifest manifest = this.manifestBuilder2.getResult();
+
+        Element schema = manifest.getRootMetadataElement().getChild("schema", Namespace.getNamespace(XMLNS));
+        Element schemaVersion = manifest.getRootMetadataElement().getChild("schemaversion", Namespace.getNamespace(XMLNS));
+
+        assertEquals(expectedSchema, schema.getText());
+        assertEquals(expectedSchemaVersion.name(), schemaVersion.getText());
     }
 }

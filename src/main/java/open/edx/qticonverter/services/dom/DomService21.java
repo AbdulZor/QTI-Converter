@@ -19,6 +19,7 @@ import open.edx.qticonverter.models.qti.item.responseDeclarations.ResponseDeclar
 import open.edx.qticonverter.models.qti.manifest.Manifest;
 import open.edx.qticonverter.models.qti.manifest.Manifest21Builder;
 import open.edx.qticonverter.models.qti.manifest.ManifestBuilder;
+import open.edx.qticonverter.models.qti.manifest.enums.SchemaVersion;
 import open.edx.qticonverter.services.CourseService;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.jdom2.Document;
@@ -99,7 +100,7 @@ public class DomService21 {
         ManifestBuilder manifestBuilder = new Manifest21Builder();
         manifestBuilder.initializeDocument(); // We initialize a Document object to work on
 
-        manifestBuilder.setMetadata("QTIv2.1 Package", "1.0.0");
+        manifestBuilder.setMetadata("QTIv2.1 Package", SchemaVersion.V10);
 
         List<String> problemReferences = new ArrayList<>();
         List<Problem> problems = course.getProblems();
