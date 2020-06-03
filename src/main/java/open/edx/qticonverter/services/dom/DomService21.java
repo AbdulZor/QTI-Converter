@@ -161,9 +161,7 @@ public class DomService21 {
                         itemBody.append(problemChild.getText(), QtiBodyElement21.p);
                         break;
                     case "multiplechoiceresponse":
-//                        assessmentItemObj.addResponseDeclaration(responseDeclaration);
                         buildChoiceBoxItemDom(assessmentItemObj, (ResponseDeclaration21) responseDeclaration, problemChild);
-//                        buildChoiceBoxItem(qtiDocument, problemChild, itemBody, promptStringBuilder, assessmentItemNode, responseId++);
                         break;
                     case "choiceresponse":
 //                        buildMultipleChoiceItem(qtiDocument, problemChild, itemBody, promptStringBuilder, assessmentItemNode, responseId++);
@@ -182,34 +180,6 @@ public class DomService21 {
             assessmentItemObj.buildDom();
             build(assessmentItemObj.getDocument(), course, problem.getFileIdentifier() + XML_EXTENSION);
         }
-    }
-
-    private void createOutcomeDeclarations(Problem problem, Element assessmentItemElement) {
-        // Create outcomeDeclaration SCORE
-        Element outcomeScoreDeclaration = new Element("outcomeDeclaration");
-        outcomeScoreDeclaration.setAttribute("identifier", "SCORE");
-        outcomeScoreDeclaration.setAttribute("cardinality", "single");
-        outcomeScoreDeclaration.setAttribute("baseType", "float");
-
-        Element scoreDefaultValue = new Element("defaultValue");
-        Element defaultValue = new Element("value");
-        defaultValue.setText("0"); // initial score per item is 0
-        scoreDefaultValue.addContent(defaultValue);
-        outcomeScoreDeclaration.addContent(scoreDefaultValue);
-        assessmentItemElement.addContent(outcomeScoreDeclaration); //append to assessmentItem
-
-        // Create outcomeDeclaration MAX_SCORE
-        Element outcomeMaxDeclaration = new Element("outcomeDeclaration");
-        outcomeMaxDeclaration.setAttribute("identifier", "MAX_SCORE");
-        outcomeMaxDeclaration.setAttribute("cardinality", "single");
-        outcomeMaxDeclaration.setAttribute("baseType", "float");
-
-        Element maxDefaultValue = new Element("defaultValue");
-        Element defaultValue2 = new Element("value");
-        defaultValue2.setText(String.valueOf(problem.getWeight()));
-        maxDefaultValue.addContent(defaultValue2);
-        outcomeMaxDeclaration.addContent(maxDefaultValue);
-        assessmentItemElement.addContent(outcomeMaxDeclaration); //append to assessmentItem
     }
 
     private void createMatchedResponseProcessing(Document qtiDocument, Element assessmentItemElement, int responseId, float problemWeight) {
