@@ -68,7 +68,7 @@ public class Manifest21Builder implements ManifestBuilder {
     @Override
     public void addResource(String identifier, String type, String href, List<String> dependencies) {
         Objects.requireNonNull(identifier, "Identifier of resource cannot be null");
-        Objects.requireNonNull(href, "Href link of resource cannot be null");
+        Objects.requireNonNull(href, "Href link of resource cannot be null, because each resource will get its own file");
         if (type == null || type.equals(""))
             type = "imsqti_test_xmlv2p1";
 

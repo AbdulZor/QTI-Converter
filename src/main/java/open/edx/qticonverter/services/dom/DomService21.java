@@ -10,10 +10,9 @@ import open.edx.qticonverter.models.qti.item.enums.BaseType;
 import open.edx.qticonverter.models.qti.item.enums.Cardinality;
 import open.edx.qticonverter.models.qti.item.enums.QtiBodyElement21;
 import open.edx.qticonverter.models.qti.item.interactions.blockinteractions.ChoiceInteraction21;
-import open.edx.qticonverter.models.qti.item.interactions.blockinteractions.Prompt21;
-import open.edx.qticonverter.models.qti.item.outcomeDeclarations.MaxScoreOutcomeDeclaration;
-import open.edx.qticonverter.models.qti.item.outcomeDeclarations.OutcomeDeclarationStrategy;
-import open.edx.qticonverter.models.qti.item.outcomeDeclarations.ScoreOutcomeDeclaration;
+import open.edx.qticonverter.models.qti.outcomeDeclarations.MaxScoreOutcomeDeclaration;
+import open.edx.qticonverter.models.qti.outcomeDeclarations.OutcomeDeclarationStrategy;
+import open.edx.qticonverter.models.qti.outcomeDeclarations.ScoreOutcomeDeclaration;
 import open.edx.qticonverter.models.qti.item.responseDeclarations.ResponseDeclaration21;
 import open.edx.qticonverter.models.qti.item.responseDeclarations.ResponseDeclarationStrategy;
 import open.edx.qticonverter.models.qti.manifest.Manifest;
@@ -39,7 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class DomService21 {
+public class DomService21 implements DomServiceStrategy {
     // Constants
     private final CourseService courseService;
     public static final String PACKAGE_FILES_PATH = "src/main/java/open/edx/qticonverter/files/";
@@ -57,46 +56,32 @@ public class DomService21 {
     public void createQtiPackages() throws IOException {
         List<Course> courses;
 
-            courses = this.courseService.getCourses();
+        courses = this.courseService.getCourses();
 
-            for (Course course : courses) {
-                File file = new File(PACKAGE_FILES_PATH + course.getId() + "/");
-                try {
-                    FileUtils.deleteDirectory(file);
-                } catch (IOException e) {
-                    throw new IOException("Course directory could not be deleted");
-                }
-                boolean directoryIsMade = file.mkdir();
-
-                if (directoryIsMade)
-                    createManifestXmlFile(course);
-            }
-    }
-
-    public void createQtiPackageForId(String id) {
-        Course course;
-        try {
-            course = this.courseService.getCourseById(id);
-
-            File file = new File(PACKAGE_FILES_PATH + course.getId() + "/");
-            try {
-                FileUtils.deleteDirectory(file);
-            } catch (IOException e) {
-                throw new IOException("Course directory could not be deleted");
-            }
-            boolean directoryIsMade = file.mkdir();
+        for (Course course : courses) {
+            boolean directoryIsMade = recreateDirectory(course);
 
             if (directoryIsMade) {
                 createManifestXmlFile(course);
                 createAssessmentItemFiles(course);
             }
-
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
-    private void createManifestXmlFile(Course course) throws IOException{
+    public void createQtiPackageForId(String id) throws IOException {
+        Course course;
+
+        course = this.courseService.getCourseById(id);
+
+        boolean directoryIsMade = recreateDirectory(course);
+
+        if (directoryIsMade) {
+            createManifestXmlFile(course);
+            createAssessmentItemFiles(course);
+        }
+    }
+
+    private void createManifestXmlFile(Course course) throws IOException {
         ManifestBuilder manifestBuilder = new Manifest21Builder();
         manifestBuilder.initializeDocument(); // We initialize a Document object to work on
 
@@ -118,7 +103,7 @@ public class DomService21 {
         // Add assessmentItem resources with optional dependencies
         manifestBuilder.addResource(course.getId(),
                 "imsqti_test_xmlv2p1",
-                course.getName() + "-" + course.getId() + XML_EXTENSION, // we use course because, this is what is used in the assessment part element
+                course.getName() + "-" + course.getId() + XML_EXTENSION, // we use course name and id, because this is the filename of the assessmentTest part
                 problemReferences);
 
         Manifest manifest = manifestBuilder.getResult();
@@ -127,7 +112,7 @@ public class DomService21 {
 
     }
 
-    private void createAssessmentItemFiles(Course course) throws IOException{
+    private void createAssessmentItemFiles(Course course) throws IOException {
         List<Problem> problems = course.getProblems();
         for (Problem problem : problems) {
             AssessmentItem21 assessmentItemObj = new AssessmentItem21(problem.getId(), problem.getName(), problem.getTimeDependent(), false);
@@ -469,9 +454,18 @@ public class DomService21 {
 //
 //    }
 
+    private boolean recreateDirectory(Course course) throws IOException {
+        File file = new File(PACKAGE_FILES_PATH + course.getId() + "/");
+        try {
+            FileUtils.deleteDirectory(file);
+        } catch (IOException e) {
+            throw new IOException("Course directory could not be deleted");
+        }
+        return file.mkdir();
+    }
 
     private static Document stringToXmlDocument(String str) throws IOException {
-        Document document = null;
+        Document document;
 
         try {
             InputStream input = new ByteArrayInputStream(str.getBytes());

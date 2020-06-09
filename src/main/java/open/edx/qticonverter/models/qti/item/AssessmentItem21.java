@@ -2,7 +2,7 @@ package open.edx.qticonverter.models.qti.item;
 
 import open.edx.qticonverter.models.qti.item.enums.QtiVersion;
 import open.edx.qticonverter.models.qti.item.interactions.Block;
-import open.edx.qticonverter.models.qti.item.outcomeDeclarations.OutcomeDeclarationStrategy;
+import open.edx.qticonverter.models.qti.outcomeDeclarations.OutcomeDeclarationStrategy;
 import open.edx.qticonverter.models.qti.item.responseDeclarations.ResponseDeclarationStrategy;
 import org.jdom2.Document;
 import org.jdom2.Element;

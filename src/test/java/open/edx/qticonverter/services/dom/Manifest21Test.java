@@ -213,7 +213,7 @@ public class Manifest21Test {
     }
 
     @Test
-    void addResource_Should_Throw_When_Identifier_Href_Is_NullOrUndefined() {
+    void addResource_Should_Throw_When_Identifier_AndOr_Href_Is_NullOrUndefined() {
         String expectedIdentifier = "CheckBox-1";
         String expectedType = "imsqti_item_xmlv2p1";
         String expectedHref = "Checkbox-1.xml";

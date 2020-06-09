@@ -1,4 +1,4 @@
-package open.edx.qticonverter.models.qti.item.outcomeDeclarations;
+package open.edx.qticonverter.models.qti.outcomeDeclarations;
 
 import open.edx.qticonverter.models.qti.QtiElement;
 import org.jdom2.Element;

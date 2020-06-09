@@ -22,7 +22,7 @@ public class DomController {
     }
 
     @RequestMapping("/{courseId}")
-    public void createQtiPackageForId(@PathVariable(name = "courseId") String id) {
+    public void createQtiPackageForId(@PathVariable(name = "courseId") String id) throws IOException {
         this.domService.createQtiPackageForId(id);
     }
 }
