@@ -1,8 +1,10 @@
 package open.edx.qticonverter.models.qti.manifest;
 
+import open.edx.qticonverter.models.qti.manifest.enums.SchemaVersion;
 import org.jdom2.*;
 
 import java.util.List;
+import java.util.Objects;
 
 public class Manifest21Builder implements ManifestBuilder {
     public static final String XMLNS = "http://www.imsglobal.org/xsd/imscp_v1p1";
@@ -10,6 +12,8 @@ public class Manifest21Builder implements ManifestBuilder {
     public static final String XSI_SCHEMA_LOCATION = "http://www.imsglobal.org/xsd/imscp_v1p1 imscp_v1p1.xsd " +
             "http://www.imsglobal.org/xsd/imsmd_v1p2 imsmd_v1p2p4.xsd http://www.imsglobal.org/xsd/imsqti_metadata_v2p1  " +
             "http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_metadata_v2p1.xsd";
+    public static final String DEFAULT_SCHEMA = "IMS Content";
+    public static final SchemaVersion DEFAULT_SCHEMA_VERSION = SchemaVersion.V11;
     private final String IDENTIFIER = "manifest1";
 
     private Document document;
@@ -32,23 +36,30 @@ public class Manifest21Builder implements ManifestBuilder {
         this.rootManifestElement.setAttribute("schemaLocation", XSI_SCHEMA_LOCATION, namespaceXsi);
         this.rootManifestElement.setAttribute("identifier", IDENTIFIER);
 
-        this.rootMetadataElement = new Element("metadata");
+        this.rootMetadataElement = new Element("metadata", XMLNS);
         this.rootManifestElement.addContent(this.rootMetadataElement);
 
-        this.rootOrganizationsElement = new Element("organizations");
+        this.rootOrganizationsElement = new Element("organizations", XMLNS);
         this.rootManifestElement.addContent(this.rootOrganizationsElement);
 
-        this.rootResourcesElement = new Element("resources");
+        this.rootResourcesElement = new Element("resources", XMLNS);
         this.rootManifestElement.addContent(this.rootResourcesElement);
     }
 
     @Override
-    public void setMetadata(String schema, String schemaVersion) {
-        Element schemaElement = new Element("schema");
-        Element schemaVersionElement = new Element("schemaversion");
+    public void setMetadata(String schema, SchemaVersion schemaVersion) {
+        Element schemaElement = new Element("schema", XMLNS);
+        Element schemaVersionElement = new Element("schemaversion", XMLNS);
+
+        if (schema == null || schema.equals("")) {
+            schema = DEFAULT_SCHEMA;
+        }
+        if (schemaVersion == null){
+            schemaVersion = DEFAULT_SCHEMA_VERSION;
+        }
 
         schemaElement.setText(schema);
-        schemaVersionElement.setText(schemaVersion);
+        schemaVersionElement.setText(schemaVersion.name());
 
         this.rootMetadataElement.addContent(schemaElement);
         this.rootMetadataElement.addContent(schemaVersionElement);
@@ -56,12 +67,17 @@ public class Manifest21Builder implements ManifestBuilder {
 
     @Override
     public void addResource(String identifier, String type, String href, List<String> dependencies) {
-        Element resourceElement = new Element("resource");
+        Objects.requireNonNull(identifier, "Identifier of resource cannot be null");
+        Objects.requireNonNull(href, "Href link of resource cannot be null, because each resource will get its own file");
+        if (type == null || type.equals(""))
+            type = "imsqti_test_xmlv2p1";
+
+        Element resourceElement = new Element("resource", XMLNS);
         Attribute identifierAttr = new Attribute("identifier", identifier);
         Attribute typeAttr = new Attribute("type", type);
         Attribute hrefAttr = new Attribute("href", href);
 
-        Element fileElement = new Element("file");
+        Element fileElement = new Element("file", XMLNS);
         fileElement.setAttribute("href", href);
 
         resourceElement.setAttribute(identifierAttr);
@@ -71,13 +87,13 @@ public class Manifest21Builder implements ManifestBuilder {
 
         if (dependencies != null) {
             for (String dependency : dependencies) {
-                Element dependencyElement = new Element("dependency");
+                Element dependencyElement = new Element("dependency", XMLNS);
                 dependencyElement.setAttribute("identifierref", dependency);
                 resourceElement.addContent(dependencyElement);
             }
         }
 
-        this.rootResourcesElement.addContent(resourceElement.clone());
+        this.rootResourcesElement.addContent(resourceElement);
     }
 
     @Override

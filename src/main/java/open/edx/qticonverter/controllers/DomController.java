@@ -5,6 +5,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
+
 @RequestMapping("dom")
 @RestController()
 public class DomController {
@@ -15,12 +17,12 @@ public class DomController {
     }
 
     @RequestMapping()
-    public void createQtiPackages() {
+    public void createQtiPackages() throws IOException {
         this.domService.createQtiPackages();
     }
 
     @RequestMapping("/{courseId}")
-    public void createQtiPackageForId(@PathVariable(name = "courseId") String id) {
+    public void createQtiPackageForId(@PathVariable(name = "courseId") String id) throws IOException {
         this.domService.createQtiPackageForId(id);
     }
 }

@@ -10,12 +10,15 @@ import open.edx.qticonverter.models.qti.item.enums.BaseType;
 import open.edx.qticonverter.models.qti.item.enums.Cardinality;
 import open.edx.qticonverter.models.qti.item.enums.QtiBodyElement21;
 import open.edx.qticonverter.models.qti.item.interactions.blockinteractions.ChoiceInteraction21;
-import open.edx.qticonverter.models.qti.item.interactions.blockinteractions.Prompt21;
+import open.edx.qticonverter.models.qti.outcomeDeclarations.MaxScoreOutcomeDeclaration;
+import open.edx.qticonverter.models.qti.outcomeDeclarations.OutcomeDeclarationStrategy;
+import open.edx.qticonverter.models.qti.outcomeDeclarations.ScoreOutcomeDeclaration;
 import open.edx.qticonverter.models.qti.item.responseDeclarations.ResponseDeclaration21;
 import open.edx.qticonverter.models.qti.item.responseDeclarations.ResponseDeclarationStrategy;
 import open.edx.qticonverter.models.qti.manifest.Manifest;
 import open.edx.qticonverter.models.qti.manifest.Manifest21Builder;
 import open.edx.qticonverter.models.qti.manifest.ManifestBuilder;
+import open.edx.qticonverter.models.qti.manifest.enums.SchemaVersion;
 import open.edx.qticonverter.services.CourseService;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.jdom2.Document;
@@ -35,7 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class DomService21 {
+public class DomService21 implements DomServiceStrategy {
     // Constants
     private final CourseService courseService;
     public static final String PACKAGE_FILES_PATH = "src/main/java/open/edx/qticonverter/files/";
@@ -50,57 +53,39 @@ public class DomService21 {
         this.courseService = courseService;
     }
 
-    public void createQtiPackages() {
+    public void createQtiPackages() throws IOException {
         List<Course> courses;
-        try {
-            courses = this.courseService.getCourses();
 
-            for (Course course : courses) {
-                File file = new File(PACKAGE_FILES_PATH + course.getId() + "/");
-                try {
-                    FileUtils.deleteDirectory(file);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                boolean directoryIsMade = file.mkdir();
+        courses = this.courseService.getCourses();
 
-                if (directoryIsMade)
-                    createManifestXmlFile(course);
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void createQtiPackageForId(String id) {
-        Course course;
-        try {
-            course = this.courseService.getCourseById(id);
-
-            File file = new File(PACKAGE_FILES_PATH + course.getId() + "/");
-            try {
-                FileUtils.deleteDirectory(file);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            boolean directoryIsMade = file.mkdir();
+        for (Course course : courses) {
+            boolean directoryIsMade = recreateDirectory(course);
 
             if (directoryIsMade) {
                 createManifestXmlFile(course);
                 createAssessmentItemFiles(course);
             }
-
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
-    private void createManifestXmlFile(Course course) {
+    public void createQtiPackageForId(String id) throws IOException {
+        Course course;
+
+        course = this.courseService.getCourseById(id);
+
+        boolean directoryIsMade = recreateDirectory(course);
+
+        if (directoryIsMade) {
+            createManifestXmlFile(course);
+            createAssessmentItemFiles(course);
+        }
+    }
+
+    private void createManifestXmlFile(Course course) throws IOException {
         ManifestBuilder manifestBuilder = new Manifest21Builder();
         manifestBuilder.initializeDocument(); // We initialize a Document object to work on
 
-        manifestBuilder.setMetadata("QTIv2.1 Package", "1.0.0");
+        manifestBuilder.setMetadata("QTIv2.1 Package", SchemaVersion.V10);
 
         List<String> problemReferences = new ArrayList<>();
         List<Problem> problems = course.getProblems();
@@ -118,7 +103,7 @@ public class DomService21 {
         // Add assessmentItem resources with optional dependencies
         manifestBuilder.addResource(course.getId(),
                 "imsqti_test_xmlv2p1",
-                course.getName() + "-" + course.getId() + XML_EXTENSION, // we use course because, this is what is used in the assessment part element
+                course.getName() + "-" + course.getId() + XML_EXTENSION, // we use course name and id, because this is the filename of the assessmentTest part
                 problemReferences);
 
         Manifest manifest = manifestBuilder.getResult();
@@ -127,13 +112,21 @@ public class DomService21 {
 
     }
 
-    private void createAssessmentItemFiles(Course course) {
+    private void createAssessmentItemFiles(Course course) throws IOException {
         List<Problem> problems = course.getProblems();
         for (Problem problem : problems) {
             AssessmentItem21 assessmentItemObj = new AssessmentItem21(problem.getId(), problem.getName(), problem.getTimeDependent(), false);
 
             ItemBody21 itemBody = new ItemBody21();
             assessmentItemObj.setItemBody(itemBody);
+
+            OutcomeDeclarationStrategy scoreOutcomeDeclaration = new ScoreOutcomeDeclaration();
+            scoreOutcomeDeclaration.createOutcomeDeclaration(0.0f);
+            assessmentItemObj.addOutcomeDeclaration(scoreOutcomeDeclaration);
+
+            OutcomeDeclarationStrategy maxOutcomeDeclaration = new MaxScoreOutcomeDeclaration();
+            maxOutcomeDeclaration.createOutcomeDeclaration(problem.getWeight());
+            assessmentItemObj.addOutcomeDeclaration(maxOutcomeDeclaration);
 
             String problemXMLString = problem.getDefinition().getData();
             logger.info("XML STRING: {}", problemXMLString);
@@ -153,9 +146,7 @@ public class DomService21 {
                         itemBody.append(problemChild.getText(), QtiBodyElement21.p);
                         break;
                     case "multiplechoiceresponse":
-//                        assessmentItemObj.addResponseDeclaration(responseDeclaration);
                         buildChoiceBoxItemDom(assessmentItemObj, (ResponseDeclaration21) responseDeclaration, problemChild);
-//                        buildChoiceBoxItem(qtiDocument, problemChild, itemBody, promptStringBuilder, assessmentItemNode, responseId++);
                         break;
                     case "choiceresponse":
 //                        buildMultipleChoiceItem(qtiDocument, problemChild, itemBody, promptStringBuilder, assessmentItemNode, responseId++);
@@ -174,34 +165,6 @@ public class DomService21 {
             assessmentItemObj.buildDom();
             build(assessmentItemObj.getDocument(), course, problem.getFileIdentifier() + XML_EXTENSION);
         }
-    }
-
-    private void createOutcomeDeclarations(Problem problem, Element assessmentItemElement) {
-        // Create outcomeDeclaration SCORE
-        Element outcomeScoreDeclaration = new Element("outcomeDeclaration");
-        outcomeScoreDeclaration.setAttribute("identifier", "SCORE");
-        outcomeScoreDeclaration.setAttribute("cardinality", "single");
-        outcomeScoreDeclaration.setAttribute("baseType", "float");
-
-        Element scoreDefaultValue = new Element("defaultValue");
-        Element defaultValue = new Element("value");
-        defaultValue.setText("0"); // initial score per item is 0
-        scoreDefaultValue.addContent(defaultValue);
-        outcomeScoreDeclaration.addContent(scoreDefaultValue);
-        assessmentItemElement.addContent(outcomeScoreDeclaration); //append to assessmentItem
-
-        // Create outcomeDeclaration MAX_SCORE
-        Element outcomeMaxDeclaration = new Element("outcomeDeclaration");
-        outcomeMaxDeclaration.setAttribute("identifier", "MAX_SCORE");
-        outcomeMaxDeclaration.setAttribute("cardinality", "single");
-        outcomeMaxDeclaration.setAttribute("baseType", "float");
-
-        Element maxDefaultValue = new Element("defaultValue");
-        Element defaultValue2 = new Element("value");
-        defaultValue2.setText(String.valueOf(problem.getWeight()));
-        maxDefaultValue.addContent(defaultValue2);
-        outcomeMaxDeclaration.addContent(maxDefaultValue);
-        assessmentItemElement.addContent(outcomeMaxDeclaration); //append to assessmentItem
     }
 
     private void createMatchedResponseProcessing(Document qtiDocument, Element assessmentItemElement, int responseId, float problemWeight) {
@@ -491,21 +454,30 @@ public class DomService21 {
 //
 //    }
 
+    private boolean recreateDirectory(Course course) throws IOException {
+        File file = new File(PACKAGE_FILES_PATH + course.getId() + "/");
+        try {
+            FileUtils.deleteDirectory(file);
+        } catch (IOException e) {
+            throw new IOException("Course directory could not be deleted");
+        }
+        return file.mkdir();
+    }
 
-    private static Document stringToXmlDocument(String str) {
-        Document document = null;
+    private static Document stringToXmlDocument(String str) throws IOException {
+        Document document;
 
         try {
             InputStream input = new ByteArrayInputStream(str.getBytes());
             SAXBuilder saxBuilder = new SAXBuilder();
             document = saxBuilder.build(input);
         } catch (JDOMException | IOException e) {
-            e.printStackTrace();
+            throw new IOException("Could not build DOM tree from ByteArrayInputStream");
         }
         return document;
     }
 
-    private void build(Document document, Course course, String fileName) {
+    private void build(Document document, Course course, String fileName) throws IOException {
         // write the content into manifest xml file
         // NOTE: if you want the thespart to be something else (sequential ...) you need to move this transform code
         // over to the add* method. This piece of code creates parses the DOM into an XML file
@@ -517,7 +489,7 @@ public class DomService21 {
         try {
             xmlOutput.output(document, new FileWriter(problemFilePath));
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new IOException("Could not create File");
         }
     }
 }
